@@ -1,0 +1,498 @@
+/*
+
+
+Run From Debug Console
+
+Id jobId = Database.executeBatch(
+    new MM_Flow_DuplicateCheckBatch(
+        'Contact',
+        false,
+        'FirstName,LastName,Birthdate'
+    ),
+    50
+);
+System.debug('Batch Job Id = ' + jobId);
+
+*/
+
+
+public without sharing class MM_Flow_DuplicateCheckBatch
+    implements Database.Batchable<SObject>, Database.Stateful {
+
+    private String objectType;
+    private Boolean performMerge;
+    private String matchFieldsCsv;
+
+    private Integer processedCount = 0;
+    private Integer updatedCount = 0;
+    private Integer candidateSetCount = 0;
+    private Integer errorCount = 0;
+
+    public MM_Flow_DuplicateCheckBatch(
+        String objectType,
+        Boolean performMerge,
+        String matchFieldsCsv
+    ) {
+        this.objectType = objectType;
+        this.performMerge = performMerge == null ? false : performMerge;
+        this.matchFieldsCsv = matchFieldsCsv;
+
+        C501_MassMerge_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** MM_Flow_DuplicateCheckBatch::Constructor objectType=' + objectType +
+            ', performMerge=' + String.valueOf(this.performMerge) +
+            ', matchFieldsCsv=' + matchFieldsCsv
+        );
+    }
+
+    public Database.QueryLocator start(Database.BatchableContext bc) {
+        String soql;
+
+        if (objectType == 'Contact') {
+            soql =
+                'SELECT Id, Duplicate_Check_Candidate__c ' +
+                'FROM Contact ' +
+                'WHERE Duplicate_Check__c = true';
+        } else if (objectType == 'Account') {
+            soql =
+                'SELECT Id, Duplicate_Check_Candidate__c ' +
+                'FROM Account ' +
+                'WHERE Duplicate_Check__c = true';
+        } else {
+            soql = 'SELECT Id FROM Account WHERE Id = null';
+        }
+
+        C501_MassMerge_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** MM_Flow_DuplicateCheckBatch::start jobId=' + bc.getJobId() +
+            ', objectType=' + objectType +
+            ', soql=' + soql
+        );
+
+        return Database.getQueryLocator(soql);
+    }
+
+    public void execute(Database.BatchableContext bc, List<SObject> scope) {
+
+        C501_MassMerge_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** MM_Flow_DuplicateCheckBatch::execute ENTER jobId=' +
+            bc.getJobId() +
+            ', scopeSize=' + (scope == null ? 'null' : String.valueOf(scope.size())) +
+            ', objectType=' + objectType
+        );
+
+        if (scope == null) {
+            C501_MassMerge_SharedCode.OutputDebugLogText(
+                LoggingLevel.DEBUG,
+                '***** MM_Flow_DuplicateCheckBatch::execute scope is NULL - exiting'
+            );
+            return;
+        }
+
+        if (objectType == 'Contact') {
+
+            C501_MassMerge_SharedCode.OutputDebugLogText(
+                LoggingLevel.DEBUG,
+                '***** MM_Flow_DuplicateCheckBatch::execute routing Contact'
+            );
+
+            processContacts(scope);
+
+        } else if (objectType == 'Account') {
+
+            C501_MassMerge_SharedCode.OutputDebugLogText(
+                LoggingLevel.DEBUG,
+                '***** MM_Flow_DuplicateCheckBatch::execute routing Account'
+            );
+
+            processAccounts(scope);
+
+        } else {
+
+            C501_MassMerge_SharedCode.OutputDebugLogText(
+                LoggingLevel.DEBUG,
+                '***** MM_Flow_DuplicateCheckBatch::execute unsupported objectType=' + objectType
+            );
+        }
+
+        C501_MassMerge_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** MM_Flow_DuplicateCheckBatch::execute EXIT jobId=' + bc.getJobId()
+        );
+    }
+
+    private void processContacts(List<SObject> scope) {
+        List<Contact> updates = new List<Contact>();
+        List<Id> contactIds = new List<Id>();
+
+        for (SObject sob : scope) {
+            contactIds.add((Id)sob.get('Id'));
+        }
+
+        List<String> matchFields = getMatchFields();
+        Set<String> fieldSet = new Set<String>{ 'Id', 'Duplicate_Check_Candidate__c' };
+        fieldSet.addAll(matchFields);
+
+        Map<Id, Contact> contactsById = new Map<Id, Contact>();
+        if (!contactIds.isEmpty()) {
+            String soql =
+                'SELECT ' + String.join(new List<String>(fieldSet), ',') +
+                ' FROM Contact WHERE Id IN :contactIds';
+
+            for (Contact con : Database.query(soql)) {
+                contactsById.put(con.Id, con);
+            }
+        }
+
+        for (SObject sob : scope) {
+            Id contactId = (Id)sob.get('Id');
+            Contact con = contactsById.get(contactId);
+            processedCount++;
+
+            if (con == null) {
+                C501_MassMerge_SharedCode.OutputDebugLogText(
+                    LoggingLevel.DEBUG,
+                    '***** MM_Flow_DuplicateCheckBatch::processContacts missing queried Contact for Id=' +
+                    String.valueOf(contactId) +
+                    ' - clearing Duplicate_Check__c'
+                );
+
+                updates.add(new Contact(
+                    Id = contactId,
+                    Duplicate_Check__c = false
+                ));
+                continue;
+            }
+
+            C501_MassMerge_SharedCode.OutputDebugLogText(
+                LoggingLevel.DEBUG,
+                '***** MM_Flow_DuplicateCheckBatch::processContacts evaluating Contact Id=' +
+                String.valueOf(con.Id) +
+                ', existing Duplicate_Check_Candidate__c=' +
+                String.valueOf(con.Duplicate_Check_Candidate__c)
+            );
+
+            if (!recordHasRequiredMatchFields(con, matchFields)) {
+                C501_MassMerge_SharedCode.OutputDebugLogText(
+                    LoggingLevel.DEBUG,
+                    '***** MM_Flow_DuplicateCheckBatch::processContacts skipping Contact Id=' +
+                    String.valueOf(con.Id) +
+                    ' due to missing required match fields; clearing Duplicate_Check__c'
+                );
+
+                updates.add(new Contact(
+                    Id = con.Id,
+                    Duplicate_Check__c = false
+                ));
+                continue;
+            }
+
+            MM_Flow_SingleContactMerge.Result res =
+                MM_Flow_SingleContactMergeService.evaluateAndMerge(
+                    con.Id,
+                    performMerge,
+                    matchFieldsCsv
+                );
+
+            Contact updateCon = new Contact(
+                Id = con.Id,
+                Duplicate_Check__c = false
+            );
+
+            if (con.Duplicate_Check_Candidate__c == null &&
+                res != null &&
+                res.candidateFound &&
+                res.masterContactId != null &&
+                res.duplicateContactId != null) {
+
+                Id candidateId =
+                    (res.masterContactId == con.Id)
+                    ? res.duplicateContactId
+                    : res.masterContactId;
+
+                if (candidateId != null && candidateId != con.Id) {
+                    updateCon.Duplicate_Check_Candidate__c = candidateId;
+                    candidateSetCount++;
+
+                    C501_MassMerge_SharedCode.OutputDebugLogText(
+                        LoggingLevel.DEBUG,
+                        '***** MM_Flow_DuplicateCheckBatch::processContacts setting Duplicate_Check_Candidate__c for Contact Id=' +
+                        String.valueOf(con.Id) +
+                        ' to candidateId=' + String.valueOf(candidateId)
+                    );
+                }
+            }
+
+            updates.add(updateCon);
+        }
+
+        saveContactUpdates(updates);
+    }
+
+    private void saveContactUpdates(List<Contact> updates) {
+        if (updates.isEmpty()) {
+            return;
+        }
+
+        Database.SaveResult[] saveResults = Database.update(updates, false);
+
+        for (Integer i = 0; i < saveResults.size(); i++) {
+            if (saveResults[i].isSuccess()) {
+                updatedCount++;
+            } else {
+                errorCount++;
+                for (Database.Error err : saveResults[i].getErrors()) {
+                    C501_MassMerge_SharedCode.OutputDebugLogText(
+                        LoggingLevel.DEBUG,
+                        '***** MM_Flow_DuplicateCheckBatch::saveContactUpdates error Contact Id=' +
+                        String.valueOf(updates[i].Id) +
+                        ', statusCode=' + String.valueOf(err.getStatusCode()) +
+                        ', message=' + err.getMessage()
+                    );
+                }
+            }
+        }
+
+        C501_MassMerge_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** MM_Flow_DuplicateCheckBatch::saveContactUpdates complete updatedCount=' +
+            String.valueOf(updatedCount) +
+            ', errorCount=' + String.valueOf(errorCount)
+        );
+    }
+
+    private void processAccounts(List<SObject> scope) {
+        List<Account> updates = new List<Account>();
+        List<Id> accountIds = new List<Id>();
+
+        for (SObject sob : scope) {
+            accountIds.add((Id)sob.get('Id'));
+        }
+
+        Map<Id, Account> accountsById = new Map<Id, Account>();
+        if (!accountIds.isEmpty()) {
+            for (Account acc : [
+                SELECT Id, Duplicate_Check_Candidate__c
+                FROM Account
+                WHERE Id IN :accountIds
+            ]) {
+                accountsById.put(acc.Id, acc);
+            }
+        }
+
+        List<String> matchFields = getMatchFields();
+        Set<String> contactFieldSet = new Set<String>{ 'Id', 'AccountId' };
+        contactFieldSet.addAll(matchFields);
+
+        Map<Id, List<Contact>> contactsByAccountId = new Map<Id, List<Contact>>();
+        if (!accountIds.isEmpty()) {
+            String contactSoql =
+                'SELECT ' + String.join(new List<String>(contactFieldSet), ',') +
+                ' FROM Contact WHERE AccountId IN :accountIds';
+
+            for (Contact con : Database.query(contactSoql)) {
+                if (!contactsByAccountId.containsKey(con.AccountId)) {
+                    contactsByAccountId.put(con.AccountId, new List<Contact>());
+                }
+                contactsByAccountId.get(con.AccountId).add(con);
+            }
+        }
+
+        for (SObject sob : scope) {
+            Id accountId = (Id)sob.get('Id');
+            Account acc = accountsById.get(accountId);
+            processedCount++;
+
+            if (acc == null) {
+                C501_MassMerge_SharedCode.OutputDebugLogText(
+                    LoggingLevel.DEBUG,
+                    '***** MM_Flow_DuplicateCheckBatch::processAccounts missing queried Account for Id=' +
+                    String.valueOf(accountId) +
+                    ' - clearing Duplicate_Check__c'
+                );
+
+                updates.add(new Account(
+                    Id = accountId,
+                    Duplicate_Check__c = false
+                ));
+                continue;
+            }
+
+            C501_MassMerge_SharedCode.OutputDebugLogText(
+                LoggingLevel.DEBUG,
+                '***** MM_Flow_DuplicateCheckBatch::processAccounts evaluating Account Id=' +
+                String.valueOf(acc.Id) +
+                ', existing Duplicate_Check_Candidate__c=' +
+                String.valueOf(acc.Duplicate_Check_Candidate__c)
+            );
+
+            List<Contact> accountContacts = contactsByAccountId.get(acc.Id);
+            if (!accountHasAnyMatchableContact(accountContacts, matchFields)) {
+                C501_MassMerge_SharedCode.OutputDebugLogText(
+                    LoggingLevel.DEBUG,
+                    '***** MM_Flow_DuplicateCheckBatch::processAccounts skipping Account Id=' +
+                    String.valueOf(acc.Id) +
+                    ' due to no related Contacts with all required match fields populated; clearing Duplicate_Check__c'
+                );
+
+                updates.add(new Account(
+                    Id = acc.Id,
+                    Duplicate_Check__c = false
+                ));
+                continue;
+            }
+
+            MM_Flow_SingleAccountMerge.Result res =
+                MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+                    acc.Id,
+                    performMerge,
+                    matchFieldsCsv
+                );
+
+            Account updateAcc = new Account(
+                Id = acc.Id,
+                Duplicate_Check__c = false
+            );
+
+            if (acc.Duplicate_Check_Candidate__c == null &&
+                res != null &&
+                res.candidateFound &&
+                res.masterAccountId != null &&
+                res.duplicateAccountId != null) {
+
+                Id candidateId =
+                    (res.masterAccountId == acc.Id)
+                    ? res.duplicateAccountId
+                    : res.masterAccountId;
+
+                if (candidateId != null && candidateId != acc.Id) {
+                    updateAcc.Duplicate_Check_Candidate__c = candidateId;
+                    candidateSetCount++;
+
+                    C501_MassMerge_SharedCode.OutputDebugLogText(
+                        LoggingLevel.DEBUG,
+                        '***** MM_Flow_DuplicateCheckBatch::processAccounts setting Duplicate_Check_Candidate__c for Account Id=' +
+                        String.valueOf(acc.Id) +
+                        ' to candidateId=' + String.valueOf(candidateId)
+                    );
+                }
+            }
+
+            updates.add(updateAcc);
+        }
+
+        saveAccountUpdates(updates);
+    }
+
+    private void saveAccountUpdates(List<Account> updates) {
+        if (updates.isEmpty()) {
+            return;
+        }
+
+        Database.SaveResult[] saveResults = Database.update(updates, false);
+
+        for (Integer i = 0; i < saveResults.size(); i++) {
+            if (saveResults[i].isSuccess()) {
+                updatedCount++;
+            } else {
+                errorCount++;
+                for (Database.Error err : saveResults[i].getErrors()) {
+                    C501_MassMerge_SharedCode.OutputDebugLogText(
+                        LoggingLevel.DEBUG,
+                        '***** MM_Flow_DuplicateCheckBatch::saveAccountUpdates error Account Id=' +
+                        String.valueOf(updates[i].Id) +
+                        ', statusCode=' + String.valueOf(err.getStatusCode()) +
+                        ', message=' + err.getMessage()
+                    );
+                }
+            }
+        }
+
+        C501_MassMerge_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** MM_Flow_DuplicateCheckBatch::saveAccountUpdates complete updatedCount=' +
+            String.valueOf(updatedCount) +
+            ', errorCount=' + String.valueOf(errorCount)
+        );
+    }
+
+    private List<String> getMatchFields() {
+        List<String> matchFields = new List<String>();
+
+        if (String.isBlank(matchFieldsCsv)) {
+            return matchFields;
+        }
+
+        for (String fieldName : matchFieldsCsv.split(',')) {
+            String trimmedField = fieldName == null ? '' : fieldName.trim();
+            if (!String.isBlank(trimmedField)) {
+                matchFields.add(trimmedField);
+            }
+        }
+
+        return matchFields;
+    }
+
+    private Boolean recordHasRequiredMatchFields(SObject recordToCheck, List<String> matchFields) {
+        if (recordToCheck == null) {
+            return false;
+        }
+
+        if (matchFields == null || matchFields.isEmpty()) {
+            return true;
+        }
+
+        for (String fieldName : matchFields) {
+            if (!fieldHasValue(recordToCheck, fieldName)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private Boolean accountHasAnyMatchableContact(List<Contact> contactsToCheck, List<String> matchFields) {
+        if (contactsToCheck == null || contactsToCheck.isEmpty()) {
+            return false;
+        }
+
+        for (Contact con : contactsToCheck) {
+            if (recordHasRequiredMatchFields(con, matchFields)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private Boolean fieldHasValue(SObject recordToCheck, String fieldName) {
+        if (recordToCheck == null || String.isBlank(fieldName)) {
+            return false;
+        }
+
+        Object fieldValue = recordToCheck.get(fieldName);
+
+        if (fieldValue == null) {
+            return false;
+        }
+
+        if (fieldValue instanceof String) {
+            return !String.isBlank((String)fieldValue);
+        }
+
+        return true;
+    }
+
+    public void finish(Database.BatchableContext bc) {
+        C501_MassMerge_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** MM_Flow_DuplicateCheckBatch::finish jobId=' + bc.getJobId() +
+            ', objectType=' + objectType +
+            ', processedCount=' + String.valueOf(processedCount) +
+            ', updatedCount=' + String.valueOf(updatedCount) +
+            ', candidateSetCount=' + String.valueOf(candidateSetCount) +
+            ', errorCount=' + String.valueOf(errorCount)
+        );
+    }
+}

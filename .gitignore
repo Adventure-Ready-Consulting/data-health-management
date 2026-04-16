@@ -1,0 +1,16 @@
+.project
+.settings
+salesforce.schema
+Referenced Packages
+/config/
+/apex-scripts/
+.sfdx/
+.vscode/
+test_results*
+/temp
+~*
+/force-app
+/src.orig
+/debug.log
+.cci
+src.zip
