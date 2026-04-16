@@ -1,7 +1,7 @@
 minimum_cumulusci_version: '2.5.8'
 
 project:
-    name: Salesforce-Mass-Merge
+    name: Data-Health_Management
     package:
         name: Mass Merge
         api_version: '45.0'
@@ -11,15 +11,3 @@ orgs:
         dev:
             config_file: orgs/dev.json
             days: 7
-
-tasks:
-    robot:
-        options:
-            suites: robot/Salesforce-Mass-Merge/tests
-            options:
-                outputdir: robot/Salesforce-Mass-Merge/results
-
-    robot_testdoc:
-        options:
-            path: robot/Salesforce-Mass-Merge/tests
-            output: robot/Salesforce-Mass-Merge/doc/Salesforce-Mass-Merge_tests.html
