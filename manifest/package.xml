@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
-        <members>C501_MassMerge_SharedCode</members>
-        <members>C501_MassMerge_SharedCode_Account</members>
-        <members>C501_MassMerge_SharedCode_Contact</members>
-        <members>C501_MassMerge_SharedCode_Object</members>
-        <members>C501_MassMerge_SharedCode_TEST</members>
-        <members>MM_Flow_MM_Flow_DuplicateCheckBatch_TEST</members>
-        <members>MM_Flow_MM_Flow_DuplicateCheckBatch</members>
-        <members>MM_Flow_MM_Flow_DuplicateCheckBatchLauncher</members>
+        <members>MassMerge_SharedCode</members>
+        <members>MassMerge_SharedCode_Account</members>
+        <members>MassMerge_SharedCode_Contact</members>
+        <members>MassMerge_SharedCode_Object</members>
+        <members>MassMerge_SharedCode_TEST</members>
+        <members>MM_Flow_DuplicateCheckBatch_TEST</members>
+        <members>MM_Flow_DuplicateCheckBatch</members>
+        <members>MM_Flow_DuplicateCheckBatchLauncher</members>
+        <members>MM_Flow_DuplicateCheckBatchLauncher_TEST</members>
         <members>MM_Flow_SingleAccountMergeService</members>
         <members>MM_Flow_SingleAccountMerge_TEST</members>
-        <members>MM_Flow_ContactMergeService</members>
+        <members>MM_Flow_SingleContactMergeService</members>
         <members>MM_Flow_SingleContactMerge_TEST</members>
         <name>ApexClass</name>
     </types>

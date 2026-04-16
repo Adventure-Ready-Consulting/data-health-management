@@ -29,7 +29,7 @@
 */
 
 @isTest
-public class C501_MassMerge_SharedCode_TEST {
+public class MassMerge_SharedCode_TEST {
     
     //==================== TEST METHOD(s) ======================================
 
@@ -46,7 +46,7 @@ public class C501_MassMerge_SharedCode_TEST {
         Phone = '(222) 222-2222');
       insert duplicateContact;
 
-      C501_MassMerge_SharedCode_Contact mergeRequest = new C501_MassMerge_SharedCode_Contact();
+      MassMerge_SharedCode_Contact mergeRequest = new MassMerge_SharedCode_Contact();
       mergeRequest.ObjectsMerge(masterContact, new List<Contact> { duplicateContact });
 
       List<Contact> contacts = [SELECT Id, Phone, MobilePhone, HomePhone, OtherPhone FROM Contact WHERE LastName = 'Contact_MergePhone_TESTDATA'];
@@ -68,7 +68,7 @@ public class C501_MassMerge_SharedCode_TEST {
         Email = 'duplicate@duplicate.org');
       insert duplicateContact;
 
-      C501_MassMerge_SharedCode_Contact mergeRequest = new C501_MassMerge_SharedCode_Contact();
+      MassMerge_SharedCode_Contact mergeRequest = new MassMerge_SharedCode_Contact();
       mergeRequest.ObjectsMerge(masterContact, new List<Contact> { duplicateContact });
 
       List<Contact> contacts = [SELECT Id, Email FROM Contact WHERE LastName = 'Contact_MergeEmail_TESTDATA'];
@@ -90,7 +90,7 @@ public class C501_MassMerge_SharedCode_TEST {
         OtherStreet = 'duplicate other street');
       insert duplicateContact;
 
-      C501_MassMerge_SharedCode_Contact mergeRequest = new C501_MassMerge_SharedCode_Contact();
+      MassMerge_SharedCode_Contact mergeRequest = new MassMerge_SharedCode_Contact();
       mergeRequest.ObjectsMerge(masterContact, new List<Contact> { duplicateContact });
 
       List<Contact> contacts = [SELECT Id, MailingStreet, OtherStreet FROM Contact WHERE LastName = 'Contact_MergeAddress_TESTDATA'];
@@ -115,7 +115,7 @@ public class C501_MassMerge_SharedCode_TEST {
         );
         insert duplicateAccount;
     
-        C501_MassMerge_SharedCode_Account mergeRequest = new C501_MassMerge_SharedCode_Account();
+        MassMerge_SharedCode_Account mergeRequest = new MassMerge_SharedCode_Account();
         mergeRequest.ObjectsMerge(masterAccount, new List<Account> { duplicateAccount });
     
         Account survivingAccount = [
