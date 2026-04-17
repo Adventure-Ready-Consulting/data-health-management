@@ -134,7 +134,7 @@ private class MM_Flow_SingleAccountMerge_TEST {
     }
 
     @IsTest
-    static void testCandidateFoundWhenTargetHasExtraContacts() {
+    static void testNoCandidateWhenHouseholdMemberCountsDiffer() {
         Account source = new Account(Name = 'Source Extra Test');
         Account target = new Account(Name = 'Target Extra Test');
         insert new List<Account>{ source, target };
@@ -178,9 +178,9 @@ private class MM_Flow_SingleAccountMerge_TEST {
                 false
             );
 
-        System.assertEquals(true, result.candidateFound);
-        System.assertEquals(target.Id, result.targetAccountId);
-        System.assertEquals(source.Id, result.duplicateAccountId);
+        System.assertEquals(false, result.candidateFound);
+        System.assertEquals(false, result.merged);
+        System.assertEquals('No target account found where household member counts are equal.', result.message);
     }
 
     @IsTest
@@ -223,14 +223,14 @@ private class MM_Flow_SingleAccountMerge_TEST {
         System.assertEquals('FirstName', parsed[0]);
         System.assertEquals('LastName', parsed[1]);
         System.assertEquals('Birthdate', parsed[2]);
-    
+
         List<String> parsedBlank = MM_Flow_SingleAccountMergeService.parseMatchFields(null);
         System.assertEquals(0, parsedBlank.size());
-    
+
         List<String> parsedEmpty = MM_Flow_SingleAccountMergeService.parseMatchFields('');
         System.assertEquals(0, parsedEmpty.size());
     }
-            
+
     @IsTest
     static void testFindTargetAccountForSourceReturnsNullForEmptyContacts() {
         Account source = new Account(Name = 'Source Empty');

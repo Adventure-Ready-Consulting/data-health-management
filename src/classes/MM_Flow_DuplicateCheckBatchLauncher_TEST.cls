@@ -19,7 +19,6 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
         req.objectType = 'Contact';
         req.performMerge = false;
         req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-        req.batchSize = 50;
 
         Test.startTest();
         List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
@@ -31,6 +30,7 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
         System.assertEquals(1, results.size());
         System.assertNotEquals(null, results[0].jobId);
         System.assertEquals('Queued duplicate check batch job.', results[0].message);
+        System.assertEquals(1, MM_Flow_DuplicateCheckBatchLauncher.DEFAULT_BATCH_SIZE);
     }
 
     @IsTest
@@ -53,7 +53,6 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
         req.objectType = 'Account';
         req.performMerge = false;
         req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-        req.batchSize = 50;
 
         Test.startTest();
         List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
@@ -73,7 +72,6 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
             new MM_Flow_DuplicateCheckBatchLauncher.Request();
         req.performMerge = false;
         req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-        req.batchSize = 50;
 
         List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
             MM_Flow_DuplicateCheckBatchLauncher.run(
@@ -92,7 +90,6 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
         req.objectType = 'Opportunity';
         req.performMerge = false;
         req.matchFieldsCsv = 'Name';
-        req.batchSize = 50;
 
         List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
             MM_Flow_DuplicateCheckBatchLauncher.run(
@@ -123,38 +120,6 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
     }
 
     @IsTest
-    static void testRunDefaultsBatchSizeWhenNull() {
-        Account acct = new Account(Name = 'Launcher Default Batch Size');
-        insert acct;
-
-        insert new Contact(
-            AccountId = acct.Id,
-            FirstName = 'Default',
-            LastName = 'Batch',
-            Birthdate = Date.newInstance(1995, 5, 5),
-            Duplicate_Check__c = true
-        );
-
-        MM_Flow_DuplicateCheckBatchLauncher.Request req =
-            new MM_Flow_DuplicateCheckBatchLauncher.Request();
-        req.objectType = 'Contact';
-        req.performMerge = false;
-        req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-        req.batchSize = null;
-
-        Test.startTest();
-        List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
-            MM_Flow_DuplicateCheckBatchLauncher.run(
-                new List<MM_Flow_DuplicateCheckBatchLauncher.Request>{ req }
-            );
-        Test.stopTest();
-
-        System.assertEquals(1, results.size());
-        System.assertNotEquals(null, results[0].jobId);
-        System.assertEquals('Queued duplicate check batch job.', results[0].message);
-    }
-
-    @IsTest
     static void testStartMethodCoverage() {
         Account acct = new Account(Name = 'Launcher Start Coverage');
         insert acct;
@@ -172,7 +137,6 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
         req.objectType = 'Contact';
         req.performMerge = false;
         req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-        req.batchSize = 50;
 
         Test.startTest();
         MM_Flow_DuplicateCheckBatchLauncher.start(

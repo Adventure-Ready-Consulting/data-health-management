@@ -1,5 +1,7 @@
 public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
 
+    public static final Integer DEFAULT_BATCH_SIZE = 1;
+
     public class Request {
         @InvocableVariable(required=true)
         public String objectType;
@@ -9,9 +11,6 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
 
         @InvocableVariable
         public String matchFieldsCsv;
-
-        @InvocableVariable
-        public Integer batchSize;
     }
 
     public class Result {
@@ -60,9 +59,7 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
         for (Request req : requests) {
             reqIndex++;
 
-            Integer scopeSize = (req.batchSize == null || req.batchSize <= 0)
-                ? 50
-                : req.batchSize;
+            Integer scopeSize = DEFAULT_BATCH_SIZE;
 
             MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,

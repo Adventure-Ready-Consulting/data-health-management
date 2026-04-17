@@ -36,7 +36,7 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         List<String> matchFields = parseMatchFields(matchFieldsCsv);
 
         Account sourceAccount = [
-            SELECT Id, Name
+            SELECT Id, Name, npsp__Number_of_Household_Members__c
             FROM Account
             WHERE Id = :sourceAccountId
             LIMIT 1
@@ -66,6 +66,22 @@ public without sharing class MM_Flow_SingleAccountMergeService {
             return res;
         }
 
+        Account targetAccount = [
+            SELECT Id, Name, npsp__Number_of_Household_Members__c
+            FROM Account
+            WHERE Id = :matchBundle.targetAccountId
+            LIMIT 1
+        ];
+
+        Decimal sourceHouseholdMembers = sourceAccount.npsp__Number_of_Household_Members__c;
+        Decimal targetHouseholdMembers = targetAccount.npsp__Number_of_Household_Members__c;
+
+        if (sourceHouseholdMembers != targetHouseholdMembers) {
+            res.message =
+                'No target account found where household member counts are equal.';
+            return res;
+        }
+
         res.targetAccountId = matchBundle.targetAccountId;
         res.masterAccountId = matchBundle.targetAccountId;
         res.duplicateAccountId = matchBundle.sourceAccountId;
@@ -78,10 +94,7 @@ public without sharing class MM_Flow_SingleAccountMergeService {
             return res;
         }
 
-        // 🔥 CHANGED: no more contact merge
         moveMatchedContactsToMaster(matchBundle);
-
-        // Account merge still happens
         mergeAccounts(matchBundle.targetAccountId, matchBundle.sourceAccountId);
 
         res.merged = true;
@@ -92,7 +105,6 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         return res;
     }
 
-    // 🔥 NEW METHOD (replaces mergeMatchedContacts)
     @TestVisible
     static void moveMatchedContactsToMaster(MatchBundle bundle) {
         if (bundle == null || bundle.contactMatches.isEmpty()) {
