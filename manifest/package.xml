@@ -19,8 +19,13 @@
     <types>
         <members>Account.Duplicate_Check__c</members>
         <members>Account.Duplicate_Check_Candidate__c</members>
+        <members>Account.Duplicate_Check_Confidence__c</members>
+        <members>Account.Duplicate_Check_Error__c</members>
+        <members>Account.Duplicate_Check_Number_Contacts__c</members>
         <members>Contact.Duplicate_Check__c</members>
         <members>Contact.Duplicate_Check_Candidate__c</members>
+        <members>Contact.Duplicate_Check_Confidence__c</members>
+        <members>Contact.Duplicate_Check_Error__c</members>
         <name>CustomField</name>
     </types>
     <version>45.0</version>

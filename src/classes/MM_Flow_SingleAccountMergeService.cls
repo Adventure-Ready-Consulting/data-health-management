@@ -78,7 +78,10 @@ public without sharing class MM_Flow_SingleAccountMergeService {
             return res;
         }
 
-        mergeMatchedContacts(matchBundle);
+        // 🔥 CHANGED: no more contact merge
+        moveMatchedContactsToMaster(matchBundle);
+
+        // Account merge still happens
         mergeAccounts(matchBundle.targetAccountId, matchBundle.sourceAccountId);
 
         res.merged = true;
@@ -87,6 +90,33 @@ public without sharing class MM_Flow_SingleAccountMergeService {
             ' into master account ' + String.valueOf(res.masterAccountId) + '.';
 
         return res;
+    }
+
+    // 🔥 NEW METHOD (replaces mergeMatchedContacts)
+    @TestVisible
+    static void moveMatchedContactsToMaster(MatchBundle bundle) {
+        if (bundle == null || bundle.contactMatches.isEmpty()) {
+            return;
+        }
+
+        List<Contact> updates = new List<Contact>();
+
+        for (ContactMatch cm : bundle.contactMatches) {
+            if (cm == null || cm.sourceContact == null) {
+                continue;
+            }
+
+            if (cm.sourceContact.AccountId != bundle.targetAccountId) {
+                updates.add(new Contact(
+                    Id = cm.sourceContact.Id,
+                    AccountId = bundle.targetAccountId
+                ));
+            }
+        }
+
+        if (!updates.isEmpty()) {
+            Database.update(updates, false);
+        }
     }
 
     @TestVisible
@@ -193,29 +223,11 @@ public without sharing class MM_Flow_SingleAccountMergeService {
     }
 
     @TestVisible
-    static void mergeMatchedContacts(MatchBundle bundle) {
-        if (bundle == null || bundle.contactMatches.isEmpty()) {
-            return;
-        }
-
-        for (ContactMatch cm : bundle.contactMatches) {
-            if (cm == null || cm.sourceContact == null || cm.targetContact == null) {
-                continue;
-            }
-
-            new C501_MassMerge_SharedCode_Contact().ObjectsMerge(
-                cm.targetContact,
-                new List<Contact>{ cm.sourceContact }
-            );
-        }
-    }
-
-    @TestVisible
     static void mergeAccounts(Id targetAccountId, Id sourceAccountId) {
         Account target = [SELECT Id FROM Account WHERE Id = :targetAccountId LIMIT 1];
         Account source = [SELECT Id FROM Account WHERE Id = :sourceAccountId LIMIT 1];
 
-        new C501_MassMerge_SharedCode_Account().ObjectsMerge(
+        new MassMerge_SharedCode_Account().ObjectsMerge(
             target,
             new List<Account>{ source }
         );
@@ -225,11 +237,11 @@ public without sharing class MM_Flow_SingleAccountMergeService {
     static List<String> parseMatchFields(String matchFieldsCsv) {
         List<String> matchFields = new List<String>();
 
-        String effectiveCsv = String.isBlank(matchFieldsCsv)
-            ? DEFAULT_MATCH_FIELDS_CSV
-            : matchFieldsCsv;
+        if (String.isBlank(matchFieldsCsv)) {
+            return matchFields;
+        }
 
-        for (String fieldName : effectiveCsv.split(',')) {
+        for (String fieldName : matchFieldsCsv.split(',')) {
             String trimmedField = fieldName == null ? '' : fieldName.trim();
             if (!String.isBlank(trimmedField)) {
                 matchFields.add(trimmedField);
@@ -237,22 +249,5 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         }
 
         return matchFields;
-    }
-
-    @TestVisible
-    static String buildMatchKey(String firstName, String lastName, Date birthdate) {
-        String fn = normalizeName(firstName);
-        String ln = normalizeName(lastName);
-
-        if (String.isBlank(fn) || String.isBlank(ln) || birthdate == null) {
-            return null;
-        }
-
-        return fn + '|' + ln + '|' + String.valueOf(birthdate);
-    }
-
-    @TestVisible
-    static String normalizeName(String value) {
-        return String.isBlank(value) ? null : value.trim().toLowerCase();
     }
 }

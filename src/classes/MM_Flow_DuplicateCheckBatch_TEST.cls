@@ -47,6 +47,60 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
     }
 
     @IsTest
+    static void testBatchContactCandidateOverwritesExistingValue() {
+        Account acct = new Account(Name = 'Batch Household Overwrite');
+        insert acct;
+
+        Contact existingCandidate = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Other',
+            LastName = 'Person',
+            Birthdate = Date.newInstance(1970, 1, 1)
+        );
+        insert existingCandidate;
+
+        Contact masterCon = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Mary',
+            LastName = 'Jones',
+            Birthdate = Date.newInstance(1990, 5, 15),
+            Duplicate_Check__c = false
+        );
+        insert masterCon;
+
+        Contact flaggedCon = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Mary',
+            LastName = 'Jones',
+            Birthdate = Date.newInstance(1990, 5, 15),
+            Duplicate_Check__c = true,
+            Duplicate_Check_Candidate__c = existingCandidate.Id
+        );
+        insert flaggedCon;
+
+        Test.startTest();
+        Database.executeBatch(
+            new MM_Flow_DuplicateCheckBatch(
+                'Contact',
+                false,
+                'FirstName,LastName,Birthdate'
+            ),
+            50
+        );
+        Test.stopTest();
+
+        Contact refreshed = [
+            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c
+            FROM Contact
+            WHERE Id = :flaggedCon.Id
+            LIMIT 1
+        ];
+
+        System.assertEquals(false, refreshed.Duplicate_Check__c);
+        System.assertEquals(masterCon.Id, refreshed.Duplicate_Check_Candidate__c);
+    }
+
+    @IsTest
     static void testBatchContactNoCandidate() {
         Account acct = new Account(Name = 'Batch Household B');
         insert acct;
@@ -117,61 +171,6 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         System.assertEquals(null, refreshed.Birthdate);
         System.assertEquals(false, refreshed.Duplicate_Check__c);
         System.assertEquals(null, refreshed.Duplicate_Check_Candidate__c);
-    }
-
-    @IsTest
-    static void testBatchContactDoesNotOverwriteExistingCandidate() {
-        Account acct = new Account(Name = 'Batch Household Existing Candidate');
-        insert acct;
-
-        Contact existingCandidate = new Contact(
-            AccountId = acct.Id,
-            FirstName = 'Target',
-            LastName = 'Person',
-            Birthdate = Date.newInstance(1975, 6, 1),
-            Duplicate_Check__c = false
-        );
-        insert existingCandidate;
-
-        Contact actualMatch = new Contact(
-            AccountId = acct.Id,
-            FirstName = 'Jane',
-            LastName = 'Doe',
-            Birthdate = Date.newInstance(1992, 7, 4),
-            Duplicate_Check__c = false
-        );
-        insert actualMatch;
-
-        Contact flaggedCon = new Contact(
-            AccountId = acct.Id,
-            FirstName = 'Jane',
-            LastName = 'Doe',
-            Birthdate = Date.newInstance(1992, 7, 4),
-            Duplicate_Check__c = true,
-            Duplicate_Check_Candidate__c = existingCandidate.Id
-        );
-        insert flaggedCon;
-
-        Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Contact',
-                false,
-                'FirstName,LastName,Birthdate'
-            ),
-            50
-        );
-        Test.stopTest();
-
-        Contact refreshed = [
-            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c
-            FROM Contact
-            WHERE Id = :flaggedCon.Id
-            LIMIT 1
-        ];
-
-        System.assertEquals(false, refreshed.Duplicate_Check__c);
-        System.assertEquals(existingCandidate.Id, refreshed.Duplicate_Check_Candidate__c);
     }
 
     @IsTest
@@ -335,7 +334,6 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
             LIMIT 1
         ];
 
-        // Unsupported object type means batch should not process the account.
         System.assertEquals(true, refreshed.Duplicate_Check__c);
     }
 

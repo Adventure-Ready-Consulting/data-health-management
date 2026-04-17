@@ -11,82 +11,130 @@ public without sharing class MM_Flow_SingleContactMergeService {
     }
 
     public static MM_Flow_SingleContactMerge.Result evaluateAndMerge(
-        Id inputContactId,
+        Id sourceContactId,
         Boolean performMerge
     ) {
-        return evaluateAndMerge(inputContactId, performMerge, DEFAULT_MATCH_FIELDS_CSV);
+        return evaluateAndMerge(sourceContactId, performMerge, DEFAULT_MATCH_FIELDS_CSV);
     }
-
+    
     public static MM_Flow_SingleContactMerge.Result evaluateAndMerge(
-        Id inputContactId,
+        Id sourceContactId,
         Boolean performMerge,
         String matchFieldsCsv
     ) {
         MM_Flow_SingleContactMerge.Result res = new MM_Flow_SingleContactMerge.Result();
-        res.inputContactId = inputContactId;
-        res.accountId = null;
-        res.matchKey = null;
         res.masterContactId = null;
         res.duplicateContactId = null;
         res.candidateFound = false;
         res.merged = false;
+        res.message = null;
         res.duplicateCount = 0;
-
+    
+        if (sourceContactId == null) {
+            res.message = 'Source contact Id is null.';
+            return res;
+        }
+    
         List<String> matchFields = parseMatchFields(matchFieldsCsv);
-
-        String selectFields = buildContactSelectFields(matchFields);
-
-        Contact inputContact = (Contact)Database.query(
-            'SELECT ' + selectFields +
+        String sourceContactSelect = buildContactSelectFields(matchFields);
+    
+        List<Contact> sourceContacts = Database.query(
+            'SELECT ' + sourceContactSelect +
             ' FROM Contact ' +
-            ' WHERE Id = :inputContactId ' +
+            ' WHERE Id = :sourceContactId ' +
             ' LIMIT 1'
         );
-
-        res.accountId = inputContact.AccountId;
-        res.matchKey = buildMatchKeyFromRecord(inputContact, matchFields);
-
-        if (inputContact.AccountId == null) {
+    
+        if (sourceContacts.isEmpty()) {
+            res.message =
+                'Source contact no longer exists, likely due to an earlier merge in this batch scope.';
+            return res;
+        }
+    
+        Contact sourceContact = sourceContacts[0];
+    
+        if (sourceContact.AccountId == null) {
             res.message = 'Input contact is not associated with an Account.';
             return res;
         }
-
-        if (String.isBlank(res.matchKey)) {
+    
+        String sourceKey = buildMatchKeyFromRecord(sourceContact, matchFields);
+        if (String.isBlank(sourceKey)) {
             res.message = 'Input contact is missing one or more required match fields.';
             return res;
         }
+    
+        String candidateSelect = buildContactSelectFields(matchFields);
 
-        MatchBundle bundle = findMatchesWithinAccount(inputContact, matchFields);
-
-        if (bundle == null || bundle.duplicateContacts.isEmpty()) {
-            res.masterContactId = inputContact.Id;
+        Id sourceId = sourceContact.Id;
+        Id sourceAccountId = sourceContact.AccountId;
+        
+        List<Contact> candidateContacts = Database.query(
+            'SELECT ' + candidateSelect +
+            ' FROM Contact ' +
+            ' WHERE Id != :sourceId' +
+            ' AND AccountId = :sourceAccountId'
+        );
+            
+        List<Contact> matches = new List<Contact>();
+        for (Contact candidate : candidateContacts) {
+            String candidateKey = buildMatchKeyFromRecord(candidate, matchFields);
+            if (candidateKey == sourceKey) {
+                matches.add(candidate);
+            }
+        }
+    
+        if (matches.isEmpty()) {
+            res.masterContactId = sourceContact.Id;
+            res.duplicateCount = 0;
             res.message = 'No matching contacts found within the same account.';
             return res;
         }
-
-        res.accountId = bundle.accountId;
-        res.matchKey = bundle.matchKey;
-        res.masterContactId = bundle.masterContact.Id;
-        res.duplicateCount = bundle.duplicateContacts.size();
-        res.duplicateContactId = bundle.duplicateContacts[0].Id;
+    
+        Contact winningMaster = sourceContact;
+        Contact winningDuplicate = matches[0];
+    
+        List<Id> compareIds = new List<Id>{ sourceContact.Id, winningDuplicate.Id };
+        List<Contact> compareContacts = [
+            SELECT Id, CreatedDate
+            FROM Contact
+            WHERE Id IN :compareIds
+            ORDER BY CreatedDate ASC, Id ASC
+        ];
+    
+        if (!compareContacts.isEmpty()) {
+            winningMaster = compareContacts[0];
+            winningDuplicate =
+                (compareContacts[0].Id == sourceContact.Id)
+                ? matches[0]
+                : sourceContact;
+        }
+    
         res.candidateFound = true;
-
+        res.masterContactId = winningMaster.Id;
+        res.duplicateContactId = winningDuplicate.Id;
+        res.duplicateCount = matches.size();
+    
         if (!performMerge) {
             res.message =
                 'Candidate found. Contact ' + String.valueOf(res.duplicateContactId) +
                 ' would be merged into master contact ' + String.valueOf(res.masterContactId) + '.';
             return res;
         }
-
-        mergeContacts(bundle);
-
+    
+        new MassMerge_SharedCode_Contact().ObjectsMerge(
+            winningMaster,
+            new List<Contact>{ winningDuplicate }
+        );
+    
         res.merged = true;
         res.message =
             'Merged contact ' + String.valueOf(res.duplicateContactId) +
             ' into master contact ' + String.valueOf(res.masterContactId) + '.';
+    
         return res;
     }
-
+    
     @TestVisible
     static MatchBundle findMatchesWithinAccount(Contact inputContact) {
         return findMatchesWithinAccount(inputContact, parseMatchFields(DEFAULT_MATCH_FIELDS_CSV));
@@ -138,7 +186,7 @@ public without sharing class MM_Flow_SingleContactMergeService {
             return;
         }
 
-        new C501_MassMerge_SharedCode_Contact().ObjectsMerge(
+        new MassMerge_SharedCode_Contact().ObjectsMerge(
             bundle.masterContact,
             bundle.duplicateContacts
         );

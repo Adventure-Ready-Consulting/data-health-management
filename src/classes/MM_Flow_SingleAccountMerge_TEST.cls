@@ -217,24 +217,20 @@ private class MM_Flow_SingleAccountMerge_TEST {
     }
 
     @IsTest
-    static void testParseAndNormalizeHelpers() {
+    static void testParseHelpers() {
         List<String> parsed = MM_Flow_SingleAccountMergeService.parseMatchFields(' FirstName , LastName , Birthdate ');
         System.assertEquals(3, parsed.size());
         System.assertEquals('FirstName', parsed[0]);
         System.assertEquals('LastName', parsed[1]);
         System.assertEquals('Birthdate', parsed[2]);
-
-        System.assertEquals('john', MM_Flow_SingleAccountMergeService.normalizeName('  John  '));
-        System.assertEquals(null, MM_Flow_SingleAccountMergeService.normalizeName('   '));
-
-        String key = MM_Flow_SingleAccountMergeService.buildMatchKey(
-            'John',
-            'Smith',
-            Date.newInstance(1980, 1, 1)
-        );
-        System.assertEquals('john|smith|1980-01-01', key);
+    
+        List<String> parsedBlank = MM_Flow_SingleAccountMergeService.parseMatchFields(null);
+        System.assertEquals(0, parsedBlank.size());
+    
+        List<String> parsedEmpty = MM_Flow_SingleAccountMergeService.parseMatchFields('');
+        System.assertEquals(0, parsedEmpty.size());
     }
-
+            
     @IsTest
     static void testFindTargetAccountForSourceReturnsNullForEmptyContacts() {
         Account source = new Account(Name = 'Source Empty');

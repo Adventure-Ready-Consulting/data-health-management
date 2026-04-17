@@ -62,6 +62,7 @@ private class MM_Flow_SingleContactMerge_TEST {
         System.assertEquals(c1.Id, result.masterContactId);
         System.assertEquals(0, result.duplicateCount);
         System.assertEquals(false, result.merged);
+        System.assertEquals('No matching contacts found within the same account.', result.message);
     }
 
     @IsTest
@@ -184,6 +185,12 @@ private class MM_Flow_SingleContactMerge_TEST {
         System.assertEquals('LastName', parsed[1]);
         System.assertEquals('Birthdate', parsed[2]);
 
+        List<String> parsedDefault = MM_Flow_SingleContactMergeService.parseMatchFields(null);
+        System.assertEquals(3, parsedDefault.size());
+        System.assertEquals('FirstName', parsedDefault[0]);
+        System.assertEquals('LastName', parsedDefault[1]);
+        System.assertEquals('Birthdate', parsedDefault[2]);
+
         String key = MM_Flow_SingleContactMergeService.buildMatchKey(
             ' John ',
             ' Smith ',
@@ -292,5 +299,63 @@ private class MM_Flow_SingleContactMerge_TEST {
                 new List<String>{ 'FirstName', 'LastName', 'Birthdate' }
             )
         );
+    }
+
+    @IsTest
+    static void testFindMatchesWithinAccountReturnsBundle() {
+        Account acct = new Account(Name = 'Bundle Household');
+        insert acct;
+
+        Contact c1 = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Pat',
+            LastName = 'Lee',
+            Birthdate = Date.newInstance(1975, 4, 5)
+        );
+        Contact c2 = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Pat',
+            LastName = 'Lee',
+            Birthdate = Date.newInstance(1975, 4, 5)
+        );
+        insert new List<Contact>{ c1, c2 };
+
+        Contact queried = [
+            SELECT Id, AccountId, FirstName, LastName, Birthdate, CreatedDate
+            FROM Contact
+            WHERE Id = :c2.Id
+            LIMIT 1
+        ];
+
+        MM_Flow_SingleContactMergeService.MatchBundle bundle =
+            MM_Flow_SingleContactMergeService.findMatchesWithinAccount(
+                queried,
+                new List<String>{ 'FirstName', 'LastName', 'Birthdate' }
+            );
+
+        System.assertNotEquals(null, bundle);
+        System.assertEquals(acct.Id, bundle.accountId);
+        System.assertEquals(2, bundle.allMatchingContacts.size());
+        System.assertEquals(1, bundle.duplicateContacts.size());
+        System.assertNotEquals(null, bundle.masterContact);
+    }
+
+    @IsTest
+    static void testMergeContactsNoOpAndDeletedSourceHandled() {
+        MM_Flow_SingleContactMergeService.mergeContacts(null);
+    
+        MM_Flow_SingleContactMergeService.MatchBundle emptyBundle =
+            new MM_Flow_SingleContactMergeService.MatchBundle();
+        MM_Flow_SingleContactMergeService.mergeContacts(emptyBundle);
+    
+        MM_Flow_SingleContactMerge.Result result =
+            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+                null,
+                false
+            );
+    
+        System.assertEquals(false, result.candidateFound);
+        System.assertEquals(false, result.merged);
+        System.assertEquals('Source contact Id is null.', result.message);
     }
 }

@@ -24,7 +24,7 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
 
     @InvocableMethod(label='Start Duplicate Check Batch')
     public static void start(List<Request> requests) {
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatchLauncher::start ENTER requests size=' +
             (requests == null ? 'null' : String.valueOf(requests.size()))
@@ -32,14 +32,14 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
 
         run(requests);
 
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatchLauncher::start EXIT'
         );
     }
 
     public static List<Result> run(List<Request> requests) {
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatchLauncher::run ENTER requests size=' +
             (requests == null ? 'null' : String.valueOf(requests.size()))
@@ -48,7 +48,7 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
         List<Result> results = new List<Result>();
 
         if (requests == null || requests.isEmpty()) {
-            C501_MassMerge_SharedCode.OutputDebugLogText(
+            MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
                 '***** MM_Flow_DuplicateCheckBatchLauncher::run EXIT no requests'
             );
@@ -64,7 +64,7 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
                 ? 50
                 : req.batchSize;
 
-            C501_MassMerge_SharedCode.OutputDebugLogText(
+            MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
                 '***** MM_Flow_DuplicateCheckBatchLauncher::run Request #' + reqIndex +
                 ' objectType=' + req.objectType +
@@ -80,7 +80,7 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
                 res.jobId = null;
                 results.add(res);
 
-                C501_MassMerge_SharedCode.OutputDebugLogText(
+                MassMerge_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** MM_Flow_DuplicateCheckBatchLauncher::run Request #' + reqIndex +
                     ' skipped - Missing objectType'
@@ -93,7 +93,7 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
                 res.jobId = null;
                 results.add(res);
 
-                C501_MassMerge_SharedCode.OutputDebugLogText(
+                MassMerge_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** MM_Flow_DuplicateCheckBatchLauncher::run Request #' + reqIndex +
                     ' skipped - Unsupported objectType=' + req.objectType
@@ -110,7 +110,7 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
                 scopeSize
             );
 
-            C501_MassMerge_SharedCode.OutputDebugLogText(
+            MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
                 '***** MM_Flow_DuplicateCheckBatchLauncher::run Request #' + reqIndex +
                 ' queued Batch JobId=' + String.valueOf(batchJobId)
@@ -121,7 +121,7 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
             results.add(res);
         }
 
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatchLauncher::run EXIT results size=' +
             String.valueOf(results.size())

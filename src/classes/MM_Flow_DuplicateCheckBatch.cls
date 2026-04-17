@@ -1,6 +1,5 @@
 /*
 
-
 Run From Debug Console
 
 Id jobId = Database.executeBatch(
@@ -14,7 +13,6 @@ Id jobId = Database.executeBatch(
 System.debug('Batch Job Id = ' + jobId);
 
 */
-
 
 public without sharing class MM_Flow_DuplicateCheckBatch
     implements Database.Batchable<SObject>, Database.Stateful {
@@ -37,7 +35,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
         this.performMerge = performMerge == null ? false : performMerge;
         this.matchFieldsCsv = matchFieldsCsv;
 
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatch::Constructor objectType=' + objectType +
             ', performMerge=' + String.valueOf(this.performMerge) +
@@ -62,7 +60,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             soql = 'SELECT Id FROM Account WHERE Id = null';
         }
 
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatch::start jobId=' + bc.getJobId() +
             ', objectType=' + objectType +
@@ -74,7 +72,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
     public void execute(Database.BatchableContext bc, List<SObject> scope) {
 
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatch::execute ENTER jobId=' +
             bc.getJobId() +
@@ -83,7 +81,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
         );
 
         if (scope == null) {
-            C501_MassMerge_SharedCode.OutputDebugLogText(
+            MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
                 '***** MM_Flow_DuplicateCheckBatch::execute scope is NULL - exiting'
             );
@@ -92,7 +90,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
         if (objectType == 'Contact') {
 
-            C501_MassMerge_SharedCode.OutputDebugLogText(
+            MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
                 '***** MM_Flow_DuplicateCheckBatch::execute routing Contact'
             );
@@ -101,7 +99,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
         } else if (objectType == 'Account') {
 
-            C501_MassMerge_SharedCode.OutputDebugLogText(
+            MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
                 '***** MM_Flow_DuplicateCheckBatch::execute routing Account'
             );
@@ -110,13 +108,13 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
         } else {
 
-            C501_MassMerge_SharedCode.OutputDebugLogText(
+            MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
                 '***** MM_Flow_DuplicateCheckBatch::execute unsupported objectType=' + objectType
             );
         }
 
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatch::execute EXIT jobId=' + bc.getJobId()
         );
@@ -151,7 +149,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             processedCount++;
 
             if (con == null) {
-                C501_MassMerge_SharedCode.OutputDebugLogText(
+                MassMerge_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** MM_Flow_DuplicateCheckBatch::processContacts missing queried Contact for Id=' +
                     String.valueOf(contactId) +
@@ -165,7 +163,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                 continue;
             }
 
-            C501_MassMerge_SharedCode.OutputDebugLogText(
+            MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
                 '***** MM_Flow_DuplicateCheckBatch::processContacts evaluating Contact Id=' +
                 String.valueOf(con.Id) +
@@ -174,7 +172,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             );
 
             if (!recordHasRequiredMatchFields(con, matchFields)) {
-                C501_MassMerge_SharedCode.OutputDebugLogText(
+                MassMerge_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** MM_Flow_DuplicateCheckBatch::processContacts skipping Contact Id=' +
                     String.valueOf(con.Id) +
@@ -200,8 +198,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                 Duplicate_Check__c = false
             );
 
-            if (con.Duplicate_Check_Candidate__c == null &&
-                res != null &&
+            if (res != null &&
                 res.candidateFound &&
                 res.masterContactId != null &&
                 res.duplicateContactId != null) {
@@ -211,11 +208,14 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     ? res.duplicateContactId
                     : res.masterContactId;
 
-                if (candidateId != null && candidateId != con.Id) {
+                if (candidateId != null &&
+                    candidateId != con.Id &&
+                    updateCon.Duplicate_Check_Candidate__c != candidateId) {
+
                     updateCon.Duplicate_Check_Candidate__c = candidateId;
                     candidateSetCount++;
 
-                    C501_MassMerge_SharedCode.OutputDebugLogText(
+                    MassMerge_SharedCode.OutputDebugLogText(
                         LoggingLevel.DEBUG,
                         '***** MM_Flow_DuplicateCheckBatch::processContacts setting Duplicate_Check_Candidate__c for Contact Id=' +
                         String.valueOf(con.Id) +
@@ -243,7 +243,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             } else {
                 errorCount++;
                 for (Database.Error err : saveResults[i].getErrors()) {
-                    C501_MassMerge_SharedCode.OutputDebugLogText(
+                    MassMerge_SharedCode.OutputDebugLogText(
                         LoggingLevel.DEBUG,
                         '***** MM_Flow_DuplicateCheckBatch::saveContactUpdates error Contact Id=' +
                         String.valueOf(updates[i].Id) +
@@ -254,7 +254,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             }
         }
 
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatch::saveContactUpdates complete updatedCount=' +
             String.valueOf(updatedCount) +
@@ -305,7 +305,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             processedCount++;
 
             if (acc == null) {
-                C501_MassMerge_SharedCode.OutputDebugLogText(
+                MassMerge_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** MM_Flow_DuplicateCheckBatch::processAccounts missing queried Account for Id=' +
                     String.valueOf(accountId) +
@@ -319,7 +319,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                 continue;
             }
 
-            C501_MassMerge_SharedCode.OutputDebugLogText(
+            MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
                 '***** MM_Flow_DuplicateCheckBatch::processAccounts evaluating Account Id=' +
                 String.valueOf(acc.Id) +
@@ -329,7 +329,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
             List<Contact> accountContacts = contactsByAccountId.get(acc.Id);
             if (!accountHasAnyMatchableContact(accountContacts, matchFields)) {
-                C501_MassMerge_SharedCode.OutputDebugLogText(
+                MassMerge_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** MM_Flow_DuplicateCheckBatch::processAccounts skipping Account Id=' +
                     String.valueOf(acc.Id) +
@@ -355,8 +355,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                 Duplicate_Check__c = false
             );
 
-            if (acc.Duplicate_Check_Candidate__c == null &&
-                res != null &&
+            if (res != null &&
                 res.candidateFound &&
                 res.masterAccountId != null &&
                 res.duplicateAccountId != null) {
@@ -366,11 +365,14 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     ? res.duplicateAccountId
                     : res.masterAccountId;
 
-                if (candidateId != null && candidateId != acc.Id) {
+                if (candidateId != null &&
+                    candidateId != acc.Id &&
+                    updateAcc.Duplicate_Check_Candidate__c != candidateId) {
+
                     updateAcc.Duplicate_Check_Candidate__c = candidateId;
                     candidateSetCount++;
 
-                    C501_MassMerge_SharedCode.OutputDebugLogText(
+                    MassMerge_SharedCode.OutputDebugLogText(
                         LoggingLevel.DEBUG,
                         '***** MM_Flow_DuplicateCheckBatch::processAccounts setting Duplicate_Check_Candidate__c for Account Id=' +
                         String.valueOf(acc.Id) +
@@ -398,7 +400,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             } else {
                 errorCount++;
                 for (Database.Error err : saveResults[i].getErrors()) {
-                    C501_MassMerge_SharedCode.OutputDebugLogText(
+                    MassMerge_SharedCode.OutputDebugLogText(
                         LoggingLevel.DEBUG,
                         '***** MM_Flow_DuplicateCheckBatch::saveAccountUpdates error Account Id=' +
                         String.valueOf(updates[i].Id) +
@@ -409,7 +411,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             }
         }
 
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatch::saveAccountUpdates complete updatedCount=' +
             String.valueOf(updatedCount) +
@@ -485,7 +487,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
     }
 
     public void finish(Database.BatchableContext bc) {
-        C501_MassMerge_SharedCode.OutputDebugLogText(
+        MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatch::finish jobId=' + bc.getJobId() +
             ', objectType=' + objectType +
