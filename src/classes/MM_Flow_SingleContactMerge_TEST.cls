@@ -358,4 +358,77 @@ private class MM_Flow_SingleContactMerge_TEST {
         System.assertEquals(false, result.merged);
         System.assertEquals('Source contact Id is null.', result.message);
     }
+
+    @IsTest
+    static void testPerformMergeTrueActuallyMerges() {
+        Account acct = new Account(Name = 'Perform Merge Contact Household');
+        insert acct;
+
+        Contact olderContact = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Merge',
+            LastName = 'Me',
+            Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        insert olderContact;
+
+        Contact newerContact = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Merge',
+            LastName = 'Me',
+            Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        insert newerContact;
+
+        Test.startTest();
+        MM_Flow_SingleContactMerge.Result result =
+            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+                newerContact.Id,
+                true
+            );
+        Test.stopTest();
+
+        System.assertNotEquals(null, result);
+        System.assertEquals(true, result.candidateFound);
+        System.assertEquals(true, result.merged);
+        System.assertEquals(olderContact.Id, result.masterContactId);
+        System.assertEquals(newerContact.Id, result.duplicateContactId);
+        System.assert(result.message.contains('Merged contact'));
+
+        List<Contact> dupStillExists = [
+            SELECT Id
+            FROM Contact
+            WHERE Id = :newerContact.Id
+        ];
+        System.assertEquals(0, dupStillExists.size());
+
+        Contact survivor = [
+            SELECT Id
+            FROM Contact
+            WHERE Id = :olderContact.Id
+            LIMIT 1
+        ];
+        System.assertEquals(olderContact.Id, survivor.Id);
+    }
+
+    @IsTest
+    static void testSourceContactDeletedReturnsMessage() {
+        Id missingContactId = (Id)'003000000000000AAA';
+
+        MM_Flow_SingleContactMerge.Result result =
+            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+                missingContactId,
+                false
+            );
+
+        System.assertEquals(false, result.candidateFound);
+        System.assertEquals(false, result.merged);
+        System.assertEquals(null, result.masterContactId);
+        System.assertEquals(null, result.duplicateContactId);
+        System.assertEquals(0, result.duplicateCount);
+        System.assertEquals(
+            'Source contact no longer exists, likely due to an earlier merge in this batch scope.',
+            result.message
+        );
+    }
 }

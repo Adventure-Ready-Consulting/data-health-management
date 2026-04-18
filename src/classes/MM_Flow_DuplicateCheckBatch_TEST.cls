@@ -25,13 +25,10 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Contact',
-                false,
-                'FirstName,LastName,Birthdate'
-            ),
-            50
+        MM_Flow_DuplicateCheckBatch.startBatch(
+            'Contact',
+            false,
+            'FirstName,LastName,Birthdate'
         );
         Test.stopTest();
 
@@ -79,13 +76,10 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Contact',
-                false,
-                'FirstName,LastName,Birthdate'
-            ),
-            50
+        MM_Flow_DuplicateCheckBatch.startBatch(
+            'Contact',
+            false,
+            'FirstName,LastName,Birthdate'
         );
         Test.stopTest();
 
@@ -115,13 +109,10 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Contact',
-                false,
-                'FirstName,LastName,Birthdate'
-            ),
-            50
+        MM_Flow_DuplicateCheckBatch.startBatch(
+            'Contact',
+            false,
+            'FirstName,LastName,Birthdate'
         );
         Test.stopTest();
 
@@ -151,13 +142,10 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Contact',
-                false,
-                'FirstName,LastName,Birthdate'
-            ),
-            50
+        MM_Flow_DuplicateCheckBatch.startBatch(
+            'Contact',
+            false,
+            'FirstName,LastName,Birthdate'
         );
         Test.stopTest();
 
@@ -213,13 +201,10 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         };
 
         Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Account',
-                false,
-                'FirstName,LastName,Birthdate'
-            ),
-            50
+        MM_Flow_DuplicateCheckBatch.startBatch(
+            'Account',
+            false,
+            'FirstName,LastName,Birthdate'
         );
         Test.stopTest();
 
@@ -250,13 +235,10 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         );
 
         Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Account',
-                false,
-                'FirstName,LastName,Birthdate'
-            ),
-            50
+        MM_Flow_DuplicateCheckBatch.startBatch(
+            'Account',
+            false,
+            'FirstName,LastName,Birthdate'
         );
         Test.stopTest();
 
@@ -287,13 +269,10 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         );
 
         Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Account',
-                false,
-                'FirstName,LastName,Birthdate'
-            ),
-            50
+        MM_Flow_DuplicateCheckBatch.startBatch(
+            'Account',
+            false,
+            'FirstName,LastName,Birthdate'
         );
         Test.stopTest();
 
@@ -317,13 +296,10 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert acct;
 
         Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Opportunity',
-                false,
-                'Name'
-            ),
-            50
+        MM_Flow_DuplicateCheckBatch.startBatch(
+            'Opportunity',
+            false,
+            'Name'
         );
         Test.stopTest();
 
@@ -352,13 +328,10 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
-                'Contact',
-                false,
-                ''
-            ),
-            50
+        MM_Flow_DuplicateCheckBatch.startBatch(
+            'Contact',
+            false,
+            ''
         );
         Test.stopTest();
 

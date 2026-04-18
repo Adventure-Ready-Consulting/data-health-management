@@ -1,21 +1,20 @@
 /*
-
 Run From Debug Console
 
-Id jobId = Database.executeBatch(
-    new MM_Flow_DuplicateCheckBatch(
-        'Contact',
-        false,
-        'FirstName,LastName,Birthdate'
-    ),
-    50
+Id jobId = MM_Flow_DuplicateCheckBatch.startBatch(
+    'Account',
+    false,
+    'FirstName,LastName,Birthdate'
 );
 System.debug('Batch Job Id = ' + jobId);
-
 */
 
 public without sharing class MM_Flow_DuplicateCheckBatch
     implements Database.Batchable<SObject>, Database.Stateful {
+
+    public static final Integer REQUIRED_BATCH_SIZE = 1;
+
+    public class BatchScopeException extends Exception {}
 
     private String objectType;
     private Boolean performMerge;
@@ -40,6 +39,31 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             '***** MM_Flow_DuplicateCheckBatch::Constructor objectType=' + objectType +
             ', performMerge=' + String.valueOf(this.performMerge) +
             ', matchFieldsCsv=' + matchFieldsCsv
+        );
+    }
+
+    public static Id startBatch(
+        String objectType,
+        Boolean performMerge,
+        String matchFieldsCsv
+    ) {
+        Integer batchSizeToUse = Test.isRunningTest() ? 200 : REQUIRED_BATCH_SIZE;
+
+        MassMerge_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** MM_Flow_DuplicateCheckBatch::startBatch objectType=' + objectType +
+            ', performMerge=' + String.valueOf(performMerge == null ? false : performMerge) +
+            ', matchFieldsCsv=' + matchFieldsCsv +
+            ', batchSize=' + String.valueOf(batchSizeToUse)
+        );
+
+        return Database.executeBatch(
+            new MM_Flow_DuplicateCheckBatch(
+                objectType,
+                performMerge,
+                matchFieldsCsv
+            ),
+            batchSizeToUse
         );
     }
 
@@ -72,6 +96,8 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
     public void execute(Database.BatchableContext bc, List<SObject> scope) {
 
+        Integer actualScopeSize = (scope == null ? 0 : scope.size());
+
         MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatch::execute ENTER jobId=' +
@@ -80,12 +106,31 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             ', objectType=' + objectType
         );
 
-        if (scope == null) {
+        if (scope == null || scope.isEmpty()) {
             MassMerge_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** MM_Flow_DuplicateCheckBatch::execute scope is NULL - exiting'
+                '***** MM_Flow_DuplicateCheckBatch::execute scope is NULL/EMPTY - exiting'
             );
             return;
+        }
+
+        if (!Test.isRunningTest() &&
+            (objectType == 'Contact' || objectType == 'Account') &&
+            actualScopeSize != REQUIRED_BATCH_SIZE) {
+
+            String msg =
+                'MM_Flow_DuplicateCheckBatch must be launched with batch size ' +
+                String.valueOf(REQUIRED_BATCH_SIZE) +
+                ' for objectType=' + objectType +
+                '. Actual scopeSize=' + String.valueOf(actualScopeSize) +
+                '. Use MM_Flow_DuplicateCheckBatch.startBatch(...) or the launcher class.';
+
+            MassMerge_SharedCode.OutputDebugLogText(
+                LoggingLevel.ERROR,
+                '***** MM_Flow_DuplicateCheckBatch::execute INVALID_SCOPE ' + msg
+            );
+
+            throw new BatchScopeException(msg);
         }
 
         if (objectType == 'Contact') {
