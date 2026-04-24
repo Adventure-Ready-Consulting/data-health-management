@@ -3,10 +3,9 @@
     <fullName>Duplicate_Check_Error__c</fullName>
     <externalId>false</externalId>
     <label>Duplicate Check Error</label>
-    <length>255</length>
-    <required>false</required>
+    <length>4096</length>
     <trackFeedHistory>false</trackFeedHistory>
     <trackHistory>false</trackHistory>
-    <type>Text</type>
-    <unique>false</unique>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
 </CustomField>

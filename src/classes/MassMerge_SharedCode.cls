@@ -198,6 +198,41 @@ public without sharing class MassMerge_SharedCode {
         return true;
     }
 
+    public static final Integer DUPLICATE_CHECK_ERROR_MAX_LENGTH = 4096;
+
+    public static String TruncateDuplicateCheckError(String message) {
+        if (message == null) {
+            return null;
+        }
+
+        if (message.length() > DUPLICATE_CHECK_ERROR_MAX_LENGTH) {
+            return message.substring(0, DUPLICATE_CHECK_ERROR_MAX_LENGTH);
+        }
+
+        return message;
+    }
+
+    public static void SetDuplicateCheckError(SObject record, String message) {
+        if (record == null) {
+            return;
+        }
+
+        record.put('Duplicate_Check_Error__c', TruncateDuplicateCheckError(message));
+    }
+
+    public static void ClearDuplicateCheckError(SObject record) {
+        if (record == null) {
+            return;
+        }
+
+        record.put('Duplicate_Check_Error__c', null);
+    }
+
+    public static void LogAndSetError(SObject record, String message) {
+        OutputDebugLogText(LoggingLevel.ERROR, message);
+        SetDuplicateCheckError(record, message);
+    }
+    
     public static void OutputDebugLogText(LoggingLevel logLevel, String logMessage) {
 
         System.debug(logLevel, logMessage);

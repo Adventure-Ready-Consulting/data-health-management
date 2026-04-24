@@ -72,12 +72,12 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
         if (objectType == 'Contact') {
             soql =
-                'SELECT Id, Duplicate_Check_Candidate__c ' +
+                'SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c ' +
                 'FROM Contact ' +
                 'WHERE Duplicate_Check__c = true';
         } else if (objectType == 'Account') {
             soql =
-                'SELECT Id, Duplicate_Check_Candidate__c ' +
+                'SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c ' +
                 'FROM Account ' +
                 'WHERE Duplicate_Check__c = true';
         } else {
@@ -174,7 +174,11 @@ public without sharing class MM_Flow_DuplicateCheckBatch
         }
 
         List<String> matchFields = getMatchFields();
-        Set<String> fieldSet = new Set<String>{ 'Id', 'Duplicate_Check_Candidate__c' };
+        Set<String> fieldSet = new Set<String>{
+            'Id',
+            'Duplicate_Check_Candidate__c',
+            'Duplicate_Check_Error__c'
+        };
         fieldSet.addAll(matchFields);
 
         Map<Id, Contact> contactsById = new Map<Id, Contact>();
@@ -201,10 +205,12 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     ' - clearing Duplicate_Check__c'
                 );
 
-                updates.add(new Contact(
+                Contact updateCon = new Contact(
                     Id = contactId,
                     Duplicate_Check__c = false
-                ));
+                );
+                MassMerge_SharedCode.ClearDuplicateCheckError(updateCon);
+                updates.add(updateCon);
                 continue;
             }
 
@@ -224,49 +230,63 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     ' due to missing required match fields; clearing Duplicate_Check__c'
                 );
 
-                updates.add(new Contact(
+                Contact updateCon = new Contact(
                     Id = con.Id,
                     Duplicate_Check__c = false
-                ));
+                );
+                MassMerge_SharedCode.ClearDuplicateCheckError(updateCon);
+                updates.add(updateCon);
                 continue;
             }
-
-            MM_Flow_SingleContactMerge.Result res =
-                MM_Flow_SingleContactMergeService.evaluateAndMerge(
-                    con.Id,
-                    performMerge,
-                    matchFieldsCsv
-                );
 
             Contact updateCon = new Contact(
                 Id = con.Id,
                 Duplicate_Check__c = false
             );
 
-            if (res != null &&
-                res.candidateFound &&
-                res.masterContactId != null &&
-                res.duplicateContactId != null) {
-
-                Id candidateId =
-                    (res.masterContactId == con.Id)
-                    ? res.duplicateContactId
-                    : res.masterContactId;
-
-                if (candidateId != null &&
-                    candidateId != con.Id &&
-                    updateCon.Duplicate_Check_Candidate__c != candidateId) {
-
-                    updateCon.Duplicate_Check_Candidate__c = candidateId;
-                    candidateSetCount++;
-
-                    MassMerge_SharedCode.OutputDebugLogText(
-                        LoggingLevel.DEBUG,
-                        '***** MM_Flow_DuplicateCheckBatch::processContacts setting Duplicate_Check_Candidate__c for Contact Id=' +
-                        String.valueOf(con.Id) +
-                        ' to candidateId=' + String.valueOf(candidateId)
+            try {
+                MM_Flow_SingleContactMerge.Result res =
+                    MM_Flow_SingleContactMergeService.evaluateAndMerge(
+                        con.Id,
+                        performMerge,
+                        matchFieldsCsv
                     );
+
+                MassMerge_SharedCode.ClearDuplicateCheckError(updateCon);
+
+                if (res != null &&
+                    res.candidateFound &&
+                    res.masterContactId != null &&
+                    res.duplicateContactId != null) {
+
+                    Id candidateId =
+                        (res.masterContactId == con.Id)
+                        ? res.duplicateContactId
+                        : res.masterContactId;
+
+                    if (candidateId != null &&
+                        candidateId != con.Id &&
+                        updateCon.Duplicate_Check_Candidate__c != candidateId) {
+
+                        updateCon.Duplicate_Check_Candidate__c = candidateId;
+                        candidateSetCount++;
+
+                        MassMerge_SharedCode.OutputDebugLogText(
+                            LoggingLevel.DEBUG,
+                            '***** MM_Flow_DuplicateCheckBatch::processContacts setting Duplicate_Check_Candidate__c for Contact Id=' +
+                            String.valueOf(con.Id) +
+                            ' to candidateId=' + String.valueOf(candidateId)
+                        );
+                    }
                 }
+            } catch (Exception e) {
+                errorCount++;
+                MassMerge_SharedCode.LogAndSetError(
+                    updateCon,
+                    '***** MM_Flow_DuplicateCheckBatch::processContacts Contact Id=' +
+                    String.valueOf(con.Id) +
+                    ' Exception: ' + String.valueOf(e.getMessage())
+                );
             }
 
             updates.add(updateCon);
@@ -318,7 +338,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
         Map<Id, Account> accountsById = new Map<Id, Account>();
         if (!accountIds.isEmpty()) {
             for (Account acc : [
-                SELECT Id, Duplicate_Check_Candidate__c
+                SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c
                 FROM Account
                 WHERE Id IN :accountIds
             ]) {
@@ -357,10 +377,12 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     ' - clearing Duplicate_Check__c'
                 );
 
-                updates.add(new Account(
+                Account updateAcc = new Account(
                     Id = accountId,
                     Duplicate_Check__c = false
-                ));
+                );
+                MassMerge_SharedCode.ClearDuplicateCheckError(updateAcc);
+                updates.add(updateAcc);
                 continue;
             }
 
@@ -381,49 +403,63 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     ' due to no related Contacts with all required match fields populated; clearing Duplicate_Check__c'
                 );
 
-                updates.add(new Account(
+                Account updateAcc = new Account(
                     Id = acc.Id,
                     Duplicate_Check__c = false
-                ));
+                );
+                MassMerge_SharedCode.ClearDuplicateCheckError(updateAcc);
+                updates.add(updateAcc);
                 continue;
             }
-
-            MM_Flow_SingleAccountMerge.Result res =
-                MM_Flow_SingleAccountMergeService.evaluateAndMerge(
-                    acc.Id,
-                    performMerge,
-                    matchFieldsCsv
-                );
 
             Account updateAcc = new Account(
                 Id = acc.Id,
                 Duplicate_Check__c = false
             );
 
-            if (res != null &&
-                res.candidateFound &&
-                res.masterAccountId != null &&
-                res.duplicateAccountId != null) {
-
-                Id candidateId =
-                    (res.masterAccountId == acc.Id)
-                    ? res.duplicateAccountId
-                    : res.masterAccountId;
-
-                if (candidateId != null &&
-                    candidateId != acc.Id &&
-                    updateAcc.Duplicate_Check_Candidate__c != candidateId) {
-
-                    updateAcc.Duplicate_Check_Candidate__c = candidateId;
-                    candidateSetCount++;
-
-                    MassMerge_SharedCode.OutputDebugLogText(
-                        LoggingLevel.DEBUG,
-                        '***** MM_Flow_DuplicateCheckBatch::processAccounts setting Duplicate_Check_Candidate__c for Account Id=' +
-                        String.valueOf(acc.Id) +
-                        ' to candidateId=' + String.valueOf(candidateId)
+            try {
+                MM_Flow_SingleAccountMerge.Result res =
+                    MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+                        acc.Id,
+                        performMerge,
+                        matchFieldsCsv
                     );
+
+                MassMerge_SharedCode.ClearDuplicateCheckError(updateAcc);
+
+                if (res != null &&
+                    res.candidateFound &&
+                    res.masterAccountId != null &&
+                    res.duplicateAccountId != null) {
+
+                    Id candidateId =
+                        (res.masterAccountId == acc.Id)
+                        ? res.duplicateAccountId
+                        : res.masterAccountId;
+
+                    if (candidateId != null &&
+                        candidateId != acc.Id &&
+                        updateAcc.Duplicate_Check_Candidate__c != candidateId) {
+
+                        updateAcc.Duplicate_Check_Candidate__c = candidateId;
+                        candidateSetCount++;
+
+                        MassMerge_SharedCode.OutputDebugLogText(
+                            LoggingLevel.DEBUG,
+                            '***** MM_Flow_DuplicateCheckBatch::processAccounts setting Duplicate_Check_Candidate__c for Account Id=' +
+                            String.valueOf(acc.Id) +
+                            ' to candidateId=' + String.valueOf(candidateId)
+                        );
+                    }
                 }
+            } catch (Exception e) {
+                errorCount++;
+                MassMerge_SharedCode.LogAndSetError(
+                    updateAcc,
+                    '***** MM_Flow_DuplicateCheckBatch::processAccounts Account Id=' +
+                    String.valueOf(acc.Id) +
+                    ' Exception: ' + String.valueOf(e.getMessage())
+                );
             }
 
             updates.add(updateAcc);
