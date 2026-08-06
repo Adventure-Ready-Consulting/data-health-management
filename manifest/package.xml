@@ -21,34 +21,25 @@
     <types>
         <members>Account.Duplicate_Check__c</members>
         <members>Account.Duplicate_Check_Candidate__c</members>
-        <members>Account.Duplicate_Check_Confidence__c</members>
         <members>Account.Duplicate_Check_Error__c</members>
-        <members>Account.Duplicate_Check_Number_Contacts__c</members>
         <members>Contact.Duplicate_Check__c</members>
         <members>Contact.Duplicate_Check_Candidate__c</members>
-        <members>Contact.Duplicate_Check_Confidence__c</members>
         <members>Contact.Duplicate_Check_Error__c</members>
         <members>DHM_Merge_Account_History__c.Account__c</members>
         <members>DHM_Merge_Account_History__c.Merge_Value__c</members>
         <members>DHM_Merge_Account_History__c.Ignore_Value__c</members>
         <members>DHM_Merge_Account_History__c.Field__c</members>
         <members>DHM_Merge_Account_History__c.Action__c</members>
-        <members>DHM_Merge_Account_History__c.User__c</members>
         <members>DHM_Merge_Contact_History__c.Contact__c</members>
         <members>DHM_Merge_Contact_History__c.Merge_Value__c</members>
         <members>DHM_Merge_Contact_History__c.Ignore_Value__c</members>
         <members>DHM_Merge_Contact_History__c.Field__c</members>
         <members>DHM_Merge_Contact_History__c.Action__c</members>
-        <members>DHM_Merge_Contact_History__c.User__c</members>
         <members>DHM_Settings__c.Maximum_Salesforce_Limits_to_Use__c</members>
         <members>DHM_Settings__c.Enable_Debug_Logging__c</members>
         <members>DHM_Settings__c.Enable_Error_Logging__c</members>
         <members>DHM_Settings__c.Log_Filter__c</members>
         <members>DHM_Settings__c.Merge_History_Write_All__c</members>
-        <members>DHM_Settings__c.Batch_Contact_Merging__c</members>
-        <members>DHM_Settings__c.Disable_All_Services__c</members>
-        <members>DHM_Settings__c.Maximum_Discover_Having_Count__c</members>
-        <members>DHM_Settings__c.Maximum_Records_Display__c</members>
         <name>CustomField</name>
     </types>
     <types>
