@@ -11,6 +11,12 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
 
         @InvocableVariable
         public String matchFieldsCsv;
+
+        @InvocableVariable(
+            label='Contact Exclusion Criteria'
+            description='Validated Contact WHERE criteria. If any Contact in either Account matches, the Account merge is skipped. Example: C501_Age_Calculate__c < 18'
+        )
+        public String contactExclusionCriteria;
     }
 
     public class Result {
@@ -67,6 +73,7 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
                 ' objectType=' + req.objectType +
                 ', performMerge=' + String.valueOf(req.performMerge) +
                 ', matchFieldsCsv=' + req.matchFieldsCsv +
+                ', contactExclusionCriteria=' + req.contactExclusionCriteria +
                 ', batchSize=' + String.valueOf(scopeSize)
             );
 
@@ -102,7 +109,8 @@ public with sharing class MM_Flow_DuplicateCheckBatchLauncher {
                 new MM_Flow_DuplicateCheckBatch(
                     req.objectType,
                     req.performMerge,
-                    req.matchFieldsCsv
+                    req.matchFieldsCsv,
+                    req.contactExclusionCriteria
                 ),
                 scopeSize
             );

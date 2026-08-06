@@ -175,10 +175,10 @@ private class MM_Flow_SingleAccountMerge_TEST {
         System.assertEquals('Birthdate', parsed[2]);
 
         List<String> parsedBlank = MM_Flow_SingleAccountMergeService.parseMatchFields(null);
-        System.assertEquals(0, parsedBlank.size());
+        System.assertEquals(3, parsedBlank.size());
 
         List<String> parsedEmpty = MM_Flow_SingleAccountMergeService.parseMatchFields('');
-        System.assertEquals(0, parsedEmpty.size());
+        System.assertEquals(3, parsedEmpty.size());
     }
 
     @IsTest
@@ -295,54 +295,120 @@ private class MM_Flow_SingleAccountMerge_TEST {
     }
 
     @IsTest
-    static void testHouseholdMemberMismatchReturnsNoCandidate() {
-        Account source = new Account(
-            Name = 'Source HH Mismatch',
-            npsp__Number_of_Household_Members__c = 2
-        );
-        Account target = new Account(
-            Name = 'Target HH Mismatch',
-            npsp__Number_of_Household_Members__c = 3
-        );
+    static void testDifferentHouseholdSizesStillReturnCandidate() {
+        Account source = new Account(Name = 'Source Smaller Household');
+        Account target = new Account(Name = 'Target Larger Household');
         insert new List<Account>{ source, target };
 
         insert new List<Contact>{
-            new Contact(
-                AccountId = source.Id,
-                FirstName = 'John',
-                LastName = 'Smith',
-                Birthdate = Date.newInstance(1980, 1, 1)
-            ),
-            new Contact(
-                AccountId = source.Id,
-                FirstName = 'Mary',
-                LastName = 'Jones',
-                Birthdate = Date.newInstance(1990, 5, 15)
-            ),
-            new Contact(
-                AccountId = target.Id,
-                FirstName = 'John',
-                LastName = 'Smith',
-                Birthdate = Date.newInstance(1980, 1, 1)
-            ),
-            new Contact(
-                AccountId = target.Id,
-                FirstName = 'Mary',
-                LastName = 'Jones',
-                Birthdate = Date.newInstance(1990, 5, 15)
-            )
+            new Contact(AccountId = source.Id, FirstName = 'John', LastName = 'Smith', Birthdate = Date.newInstance(1980, 1, 1)),
+            new Contact(AccountId = source.Id, FirstName = 'Mary', LastName = 'Jones', Birthdate = Date.newInstance(1990, 5, 15)),
+            new Contact(AccountId = target.Id, FirstName = 'John', LastName = 'Smith', Birthdate = Date.newInstance(1980, 1, 1)),
+            new Contact(AccountId = target.Id, FirstName = 'Mary', LastName = 'Jones', Birthdate = Date.newInstance(1990, 5, 15)),
+            new Contact(AccountId = target.Id, FirstName = 'Extra', LastName = 'Adult', Birthdate = Date.newInstance(1975, 3, 20))
+        };
+
+        MM_Flow_SingleAccountMerge.Result result =
+            MM_Flow_SingleAccountMergeService.evaluateAndMerge(source.Id, false);
+
+        System.assertEquals(true, result.candidateFound);
+        System.assertEquals(target.Id, result.targetAccountId);
+    }
+
+    @IsTest
+    static void testConfigurableEmailMatchField() {
+        Account source = new Account(Name = 'Source Email');
+        Account target = new Account(Name = 'Target Email');
+        insert new List<Account>{ source, target };
+
+        insert new List<Contact>{
+            new Contact(AccountId = source.Id, LastName = 'Source', Email = 'person@example.org'),
+            new Contact(AccountId = target.Id, LastName = 'Different', Email = 'person@example.org')
         };
 
         MM_Flow_SingleAccountMerge.Result result =
             MM_Flow_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
-                false
+                false,
+                'Email'
+            );
+
+        System.assertEquals(true, result.candidateFound);
+        System.assertEquals(target.Id, result.targetAccountId);
+    }
+
+    @IsTest
+    static void testDuplicateKeysRequireMatchingMultiplicity() {
+        Account source = new Account(Name = 'Source Twins');
+        Account targetOneMatch = new Account(Name = 'Target One Match');
+        Account targetTwoMatches = new Account(Name = 'Target Two Matches');
+        insert new List<Account>{ source, targetOneMatch, targetTwoMatches };
+
+        Date dob = Date.newInstance(1985, 6, 1);
+        insert new List<Contact>{
+            new Contact(AccountId = source.Id, FirstName = 'Alex', LastName = 'Same', Birthdate = dob),
+            new Contact(AccountId = source.Id, FirstName = 'Alex', LastName = 'Same', Birthdate = dob),
+            new Contact(AccountId = targetOneMatch.Id, FirstName = 'Alex', LastName = 'Same', Birthdate = dob),
+            new Contact(AccountId = targetTwoMatches.Id, FirstName = 'Alex', LastName = 'Same', Birthdate = dob),
+            new Contact(AccountId = targetTwoMatches.Id, FirstName = 'Alex', LastName = 'Same', Birthdate = dob)
+        };
+
+        MM_Flow_SingleAccountMerge.Result result =
+            MM_Flow_SingleAccountMergeService.evaluateAndMerge(source.Id, false);
+
+        System.assertEquals(true, result.candidateFound);
+        System.assertEquals(targetTwoMatches.Id, result.targetAccountId);
+    }
+
+    @IsTest
+    static void testMinimumAgeSkipsSourceWithMinor() {
+        Account source = new Account(Name = 'Source Minor');
+        Account target = new Account(Name = 'Target Adult');
+        insert new List<Account>{ source, target };
+
+        Date minorDob = Date.today().addYears(-18).addDays(1);
+        insert new List<Contact>{
+            new Contact(AccountId = source.Id, FirstName = 'Young', LastName = 'Person', Birthdate = minorDob),
+            new Contact(AccountId = target.Id, FirstName = 'Young', LastName = 'Person', Birthdate = minorDob)
+        };
+
+        MM_Flow_SingleAccountMerge.Result result =
+            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+                source.Id,
+                false,
+                'FirstName,LastName,Birthdate',
+                'Birthdate > ' + String.valueOf(Date.today().addYears(-18))
             );
 
         System.assertEquals(false, result.candidateFound);
-        System.assertEquals(false, result.merged);
+        System.assert(result.message.contains('exclusion criteria'));
+    }
+
+    @IsTest
+    static void testMinimumAgeSkipsTargetWithExtraMinor() {
+        Account source = new Account(Name = 'Source Adults');
+        Account target = new Account(Name = 'Target Has Minor');
+        insert new List<Account>{ source, target };
+
+        Date adultDob = Date.today().addYears(-30);
+        Date minorDob = Date.today().addYears(-10);
+        insert new List<Contact>{
+            new Contact(AccountId = source.Id, FirstName = 'Adult', LastName = 'Person', Birthdate = adultDob),
+            new Contact(AccountId = target.Id, FirstName = 'Adult', LastName = 'Person', Birthdate = adultDob),
+            new Contact(AccountId = target.Id, FirstName = 'Child', LastName = 'Person', Birthdate = minorDob)
+        };
+
+        MM_Flow_SingleAccountMerge.Result result =
+            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+                source.Id,
+                false,
+                'FirstName,LastName,Birthdate',
+                'Birthdate > ' + String.valueOf(Date.today().addYears(-18))
+            );
+
+        System.assertEquals(false, result.candidateFound);
         System.assertEquals(
-            'No target account found where household member counts are equal.',
+            'No target account found where all source contacts match on required fields.',
             result.message
         );
     }

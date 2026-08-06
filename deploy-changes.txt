@@ -1,0 +1,23 @@
+Steps in sfdx / cci for deploying
+
+1) cci org list
+
+2) sf project retrieve start -o prod.oppco -x manifest/package.xml
+
+** Checks to make sure code and prod are in sync
+
+3) cci task run deploy --org prod.oppco
+
+
+helper stuff
+
+sf project retrieve start -o prod.oppco -x manifest/package.xml
+
+sf org login web -r https://login.salesforce.com -a prod.oppco
+cci task run deploy --org backupprod.oppco
+sf project retrieve start -o backupprod.oppco -x manifest/package.xml
+cci org default backupprod.oppco
+sf org login web -r https://test.salesforce.com -a backupprod.oppco
+cci org connect prod --alias prod.oppco
+cci version
+ cci org connect prod.oppco

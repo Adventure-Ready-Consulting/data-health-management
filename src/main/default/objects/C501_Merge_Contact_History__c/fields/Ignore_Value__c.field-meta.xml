@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Ignore_Value__c</fullName>
+    <description>Value ignored during the merge and instead using the Merge value in the Merged object.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Value ignored during the merge and instead using the Merge value in the Merged object.</inlineHelpText>
+    <label>Duplicate Value</label>
+    <length>255</length>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

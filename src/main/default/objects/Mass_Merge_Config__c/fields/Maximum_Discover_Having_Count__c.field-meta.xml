@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Maximum_Discover_Having_Count__c</fullName>
+    <defaultValue>10</defaultValue>
+    <description>Maximum value to use in a having count to find duplicates.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Maximum value to use in a having count to find duplicates.</inlineHelpText>
+    <label>Maximum Discover Having Count</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

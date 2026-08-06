@@ -26,7 +26,28 @@
         <members>Contact.Duplicate_Check_Candidate__c</members>
         <members>Contact.Duplicate_Check_Confidence__c</members>
         <members>Contact.Duplicate_Check_Error__c</members>
+        <members>C501_Merge_Account_History__c.Account__c</members>
+        <members>C501_Merge_Account_History__c.Merge_Value__c</members>
+        <members>C501_Merge_Account_History__c.Ignore_Value__c</members>
+        <members>C501_Merge_Account_History__c.Field__c</members>
+        <members>C501_Merge_Account_History__c.Action__c</members>
+        <members>C501_Merge_Contact_History__c.Contact__c</members>
+        <members>C501_Merge_Contact_History__c.Merge_Value__c</members>
+        <members>C501_Merge_Contact_History__c.Ignore_Value__c</members>
+        <members>C501_Merge_Contact_History__c.Field__c</members>
+        <members>C501_Merge_Contact_History__c.Action__c</members>
+        <members>Mass_Merge_Config__c.Maximum_Salesforce_Limits_to_Use__c</members>
+        <members>Mass_Merge_Config__c.Enable_Debug_Logging__c</members>
+        <members>Mass_Merge_Config__c.Enable_Error_Logging__c</members>
+        <members>Mass_Merge_Config__c.Log_Filter__c</members>
+        <members>Mass_Merge_Config__c.Merge_History_Write_All__c</members>
         <name>CustomField</name>
+    </types>
+    <types>
+        <members>C501_Merge_Account_History__c</members>
+        <members>C501_Merge_Contact_History__c</members>
+        <members>Mass_Merge_Config__c</members>
+        <name>CustomObject</name>
     </types>
     <version>45.0</version>
 </Package>

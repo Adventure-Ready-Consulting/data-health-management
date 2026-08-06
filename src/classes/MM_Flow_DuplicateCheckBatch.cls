@@ -19,6 +19,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
     private String objectType;
     private Boolean performMerge;
     private String matchFieldsCsv;
+    private String contactExclusionCriteria;
 
     private Integer processedCount = 0;
     private Integer updatedCount = 0;
@@ -30,15 +31,26 @@ public without sharing class MM_Flow_DuplicateCheckBatch
         Boolean performMerge,
         String matchFieldsCsv
     ) {
+        this(objectType, performMerge, matchFieldsCsv, null);
+    }
+
+    public MM_Flow_DuplicateCheckBatch(
+        String objectType,
+        Boolean performMerge,
+        String matchFieldsCsv,
+        String contactExclusionCriteria
+    ) {
         this.objectType = objectType;
         this.performMerge = performMerge == null ? false : performMerge;
         this.matchFieldsCsv = matchFieldsCsv;
+        this.contactExclusionCriteria = contactExclusionCriteria;
 
         MassMerge_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** MM_Flow_DuplicateCheckBatch::Constructor objectType=' + objectType +
             ', performMerge=' + String.valueOf(this.performMerge) +
-            ', matchFieldsCsv=' + matchFieldsCsv
+            ', matchFieldsCsv=' + matchFieldsCsv +
+                ', contactExclusionCriteria=' + this.contactExclusionCriteria
         );
     }
 
@@ -47,6 +59,15 @@ public without sharing class MM_Flow_DuplicateCheckBatch
         Boolean performMerge,
         String matchFieldsCsv
     ) {
+        return startBatch(objectType, performMerge, matchFieldsCsv, null);
+    }
+
+    public static Id startBatch(
+        String objectType,
+        Boolean performMerge,
+        String matchFieldsCsv,
+        String contactExclusionCriteria
+    ) {
         Integer batchSizeToUse = Test.isRunningTest() ? 200 : REQUIRED_BATCH_SIZE;
 
         MassMerge_SharedCode.OutputDebugLogText(
@@ -54,14 +75,16 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             '***** MM_Flow_DuplicateCheckBatch::startBatch objectType=' + objectType +
             ', performMerge=' + String.valueOf(performMerge == null ? false : performMerge) +
             ', matchFieldsCsv=' + matchFieldsCsv +
-            ', batchSize=' + String.valueOf(batchSizeToUse)
+                ', contactExclusionCriteria=' + contactExclusionCriteria +
+                ', batchSize=' + String.valueOf(batchSizeToUse)
         );
 
         return Database.executeBatch(
             new MM_Flow_DuplicateCheckBatch(
                 objectType,
                 performMerge,
-                matchFieldsCsv
+                matchFieldsCsv,
+                contactExclusionCriteria
             ),
             batchSizeToUse
         );
@@ -422,7 +445,8 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     MM_Flow_SingleAccountMergeService.evaluateAndMerge(
                         acc.Id,
                         performMerge,
-                        matchFieldsCsv
+                        matchFieldsCsv,
+                        contactExclusionCriteria
                     );
 
                 MassMerge_SharedCode.ClearDuplicateCheckError(updateAcc);

@@ -17,13 +17,22 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         Id sourceAccountId,
         Boolean performMerge
     ) {
-        return evaluateAndMerge(sourceAccountId, performMerge, DEFAULT_MATCH_FIELDS_CSV);
+        return evaluateAndMerge(sourceAccountId, performMerge, DEFAULT_MATCH_FIELDS_CSV, null);
     }
 
     public static MM_Flow_SingleAccountMerge.Result evaluateAndMerge(
         Id sourceAccountId,
         Boolean performMerge,
         String matchFieldsCsv
+    ) {
+        return evaluateAndMerge(sourceAccountId, performMerge, matchFieldsCsv, null);
+    }
+
+    public static MM_Flow_SingleAccountMerge.Result evaluateAndMerge(
+        Id sourceAccountId,
+        Boolean performMerge,
+        String matchFieldsCsv,
+        String contactExclusionCriteria
     ) {
         MM_Flow_SingleAccountMerge.Result res = new MM_Flow_SingleAccountMerge.Result();
         res.sourceAccountId = sourceAccountId;
@@ -34,16 +43,21 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         res.merged = false;
 
         List<String> matchFields = parseMatchFields(matchFieldsCsv);
+        validateMatchFields(matchFields);
 
         Account sourceAccount = [
-            SELECT Id, Name, npsp__Number_of_Household_Members__c
+            SELECT Id, Name
             FROM Account
             WHERE Id = :sourceAccountId
             LIMIT 1
         ];
 
+        Set<String> sourceFieldSet = new Set<String>(matchFields);
+
         String sourceContactSelect =
-            MM_Flow_SingleContactMergeService.buildContactSelectFields(matchFields);
+            MM_Flow_SingleContactMergeService.buildContactSelectFields(
+                new List<String>(sourceFieldSet)
+            );
 
         Id sourceAcctId = sourceAccount.Id;
 
@@ -59,26 +73,22 @@ public without sharing class MM_Flow_SingleAccountMergeService {
             return res;
         }
 
-        MatchBundle matchBundle = findTargetAccountForSource(sourceAccount, sourceContacts, matchFields);
-
-        if (matchBundle == null) {
-            res.message = 'No target account found where all source contacts match on required fields.';
+        validateContactExclusionCriteria(contactExclusionCriteria);
+        if (accountMatchesContactExclusion(sourceAccount.Id, contactExclusionCriteria)) {
+            res.message =
+                'Account merge skipped because the source account contains a Contact matching the exclusion criteria.';
             return res;
         }
 
-        Account targetAccount = [
-            SELECT Id, Name, npsp__Number_of_Household_Members__c
-            FROM Account
-            WHERE Id = :matchBundle.targetAccountId
-            LIMIT 1
-        ];
+        MatchBundle matchBundle = findTargetAccountForSource(
+            sourceAccount,
+            sourceContacts,
+            matchFields,
+            contactExclusionCriteria
+        );
 
-        Decimal sourceHouseholdMembers = sourceAccount.npsp__Number_of_Household_Members__c;
-        Decimal targetHouseholdMembers = targetAccount.npsp__Number_of_Household_Members__c;
-
-        if (sourceHouseholdMembers != targetHouseholdMembers) {
-            res.message =
-                'No target account found where household member counts are equal.';
+        if (matchBundle == null) {
+            res.message = 'No target account found where all source contacts match on required fields.';
             return res;
         }
 
@@ -136,7 +146,8 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         return findTargetAccountForSource(
             sourceAccount,
             sourceContacts,
-            parseMatchFields(DEFAULT_MATCH_FIELDS_CSV)
+            parseMatchFields(DEFAULT_MATCH_FIELDS_CSV),
+            null
         );
     }
 
@@ -146,66 +157,112 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         List<Contact> sourceContacts,
         List<String> matchFields
     ) {
-        if (sourceAccount == null || sourceAccount.Id == null || sourceContacts == null || sourceContacts.isEmpty()) {
+        return findTargetAccountForSource(sourceAccount, sourceContacts, matchFields, null);
+    }
+
+    @TestVisible
+    static MatchBundle findTargetAccountForSource(
+        Account sourceAccount,
+        List<Contact> sourceContacts,
+        List<String> matchFields,
+        String contactExclusionCriteria
+    ) {
+        if (sourceAccount == null || sourceAccount.Id == null ||
+            sourceContacts == null || sourceContacts.isEmpty()) {
             return null;
         }
 
-        Set<String> sourceKeys = new Set<String>();
+        validateMatchFields(matchFields);
+
+        Map<String, Integer> sourceKeyCounts = new Map<String, Integer>();
+        Map<String, List<Contact>> sourceContactsByKey = new Map<String, List<Contact>>();
+
         for (Contact con : sourceContacts) {
             String key = MM_Flow_SingleContactMergeService.buildMatchKeyFromRecord(con, matchFields);
             if (key == null) {
                 return null;
             }
-            sourceKeys.add(key);
+
+            sourceKeyCounts.put(
+                key,
+                sourceKeyCounts.containsKey(key) ? sourceKeyCounts.get(key) + 1 : 1
+            );
+
+            if (!sourceContactsByKey.containsKey(key)) {
+                sourceContactsByKey.put(key, new List<Contact>());
+            }
+            sourceContactsByKey.get(key).add(con);
         }
 
-        Set<String> firstNames = new Set<String>();
-        Set<String> lastNames = new Set<String>();
-        Set<Date> birthdates = new Set<Date>();
-
+        String filterField = findFilterableMatchField(matchFields);
+        Set<Object> filterValues = new Set<Object>();
         for (Contact con : sourceContacts) {
-            firstNames.add(MM_Flow_SingleContactMergeService.normalizeName((String)con.get('FirstName')));
-            lastNames.add(MM_Flow_SingleContactMergeService.normalizeName((String)con.get('LastName')));
-            birthdates.add((Date)con.get('Birthdate'));
+            filterValues.add(con.get(filterField));
         }
 
-        List<Contact> possibleTargetContacts = [
-            SELECT Id, AccountId, FirstName, LastName, Birthdate, CreatedDate, Account.CreatedDate
-            FROM Contact
-            WHERE AccountId != :sourceAccount.Id
-            AND AccountId != null
-            AND FirstName IN :firstNames
-            AND LastName IN :lastNames
-            AND Birthdate IN :birthdates
-            ORDER BY Account.CreatedDate ASC, AccountId ASC, CreatedDate ASC, Id ASC
-        ];
+        Set<String> candidateFieldSet = new Set<String>(matchFields);
+        String candidateSelect =
+            MM_Flow_SingleContactMergeService.buildContactSelectFields(
+                new List<String>(candidateFieldSet)
+            );
 
-        Map<Id, Map<String, Contact>> targetContactsByAccountAndKey = new Map<Id, Map<String, Contact>>();
+        // Dynamic SOQL bind variables must exist in this method's local scope.
+        // The previous query referenced :sourceAccountId without declaring it,
+        // which caused every Account matching test to fail at Database.query().
+        Id sourceAccountId = sourceAccount.Id;
+
+        String possibleTargetsSoql =
+            'SELECT ' + candidateSelect + ', Account.CreatedDate' +
+            ' FROM Contact' +
+            ' WHERE AccountId != :sourceAccountId' +
+            ' AND AccountId != null' +
+            ' AND ' + filterField + ' IN (' + buildSoqlLiteralList(filterValues) + ')' +
+            ' ORDER BY Account.CreatedDate ASC, AccountId ASC, CreatedDate ASC, Id ASC';
+
+        List<Contact> possibleTargetContacts = Database.query(possibleTargetsSoql);
+
+        Map<Id, Map<String, List<Contact>>> targetContactsByAccountAndKey =
+            new Map<Id, Map<String, List<Contact>>>();
 
         for (Contact con : possibleTargetContacts) {
             String key = MM_Flow_SingleContactMergeService.buildMatchKeyFromRecord(con, matchFields);
-            if (!sourceKeys.contains(key)) {
+            if (!sourceKeyCounts.containsKey(key)) {
                 continue;
             }
 
             if (!targetContactsByAccountAndKey.containsKey(con.AccountId)) {
-                targetContactsByAccountAndKey.put(con.AccountId, new Map<String, Contact>());
+                targetContactsByAccountAndKey.put(
+                    con.AccountId,
+                    new Map<String, List<Contact>>()
+                );
             }
 
-            Map<String, Contact> keyed = targetContactsByAccountAndKey.get(con.AccountId);
-
+            Map<String, List<Contact>> keyed = targetContactsByAccountAndKey.get(con.AccountId);
             if (!keyed.containsKey(key)) {
-                keyed.put(key, con);
+                keyed.put(key, new List<Contact>());
             }
+            keyed.get(key).add(con);
         }
 
-        Id winningTargetAccountId;
-
-        List<Id> candidateAccountIds = new List<Id>(targetContactsByAccountAndKey.keySet());
+        List<Id> candidateAccountIds = new List<Id>();
+        for (Id candidateAccountId : targetContactsByAccountAndKey.keySet()) {
+            if (hasRequiredKeyCounts(
+                sourceKeyCounts,
+                targetContactsByAccountAndKey.get(candidateAccountId)
+            )) {
+                candidateAccountIds.add(candidateAccountId);
+            }
+        }
         candidateAccountIds.sort();
 
+        Set<Id> excludedAccountIds = findAccountIdsMatchingContactExclusion(
+            new Set<Id>(candidateAccountIds),
+            contactExclusionCriteria
+        );
+
+        Id winningTargetAccountId;
         for (Id candidateAccountId : candidateAccountIds) {
-            if (targetContactsByAccountAndKey.get(candidateAccountId).size() == sourceKeys.size()) {
+            if (!excludedAccountIds.contains(candidateAccountId)) {
                 winningTargetAccountId = candidateAccountId;
                 break;
             }
@@ -219,19 +276,346 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         bundle.sourceAccountId = sourceAccount.Id;
         bundle.targetAccountId = winningTargetAccountId;
 
-        Map<String, Contact> winningContactsByKey = targetContactsByAccountAndKey.get(winningTargetAccountId);
+        Map<String, List<Contact>> winningContactsByKey =
+            targetContactsByAccountAndKey.get(winningTargetAccountId);
 
-        for (Contact sourceCon : sourceContacts) {
-            String key = MM_Flow_SingleContactMergeService.buildMatchKeyFromRecord(sourceCon, matchFields);
+        for (String key : sourceContactsByKey.keySet()) {
+            List<Contact> sourceForKey = sourceContactsByKey.get(key);
+            List<Contact> targetForKey = winningContactsByKey.get(key);
 
-            ContactMatch cm = new ContactMatch();
-            cm.sourceContact = sourceCon;
-            cm.targetContact = winningContactsByKey.get(key);
-
-            bundle.contactMatches.add(cm);
+            for (Integer i = 0; i < sourceForKey.size(); i++) {
+                ContactMatch cm = new ContactMatch();
+                cm.sourceContact = sourceForKey[i];
+                cm.targetContact = targetForKey[i];
+                bundle.contactMatches.add(cm);
+            }
         }
 
         return bundle;
+    }
+
+    @TestVisible
+    static Boolean hasRequiredKeyCounts(
+        Map<String, Integer> sourceKeyCounts,
+        Map<String, List<Contact>> targetContactsByKey
+    ) {
+        if (sourceKeyCounts == null || targetContactsByKey == null) {
+            return false;
+        }
+
+        for (String key : sourceKeyCounts.keySet()) {
+            if (!targetContactsByKey.containsKey(key) ||
+                targetContactsByKey.get(key).size() < sourceKeyCounts.get(key)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @TestVisible
+    static Boolean accountMatchesContactExclusion(Id accountId, String criteria) {
+        if (accountId == null || String.isBlank(criteria)) {
+            return false;
+        }
+        return !findAccountIdsMatchingContactExclusion(
+            new Set<Id>{ accountId },
+            criteria
+        ).isEmpty();
+    }
+
+    @TestVisible
+    static Set<Id> findAccountIdsMatchingContactExclusion(
+        Set<Id> accountIds,
+        String criteria
+    ) {
+        Set<Id> result = new Set<Id>();
+        if (accountIds == null || accountIds.isEmpty() || String.isBlank(criteria)) {
+            return result;
+        }
+
+        String normalizedCriteria = validateContactExclusionCriteria(criteria);
+        String soql =
+            'SELECT Id, AccountId FROM Contact ' +
+            'WHERE AccountId IN :accountIds AND (' + normalizedCriteria + ')';
+
+        for (Contact con : Database.query(soql)) {
+            result.add(con.AccountId);
+        }
+        return result;
+    }
+
+    @TestVisible
+    static String validateContactExclusionCriteria(String criteria) {
+        if (String.isBlank(criteria)) {
+            return null;
+        }
+
+        String trimmed = criteria.trim();
+        if (trimmed.length() > 1000) {
+            throw new IllegalArgumentException('Contact exclusion criteria cannot exceed 1000 characters.');
+        }
+
+        String upper = trimmed.toUpperCase();
+        List<String> forbidden = new List<String>{
+            'SELECT', 'FROM', 'LIMIT', 'OFFSET', 'ORDER', 'GROUP', 'HAVING',
+            'WITH', 'FOR', 'UPDATE', 'USING', 'SCOPE', 'TYPEOF', 'LIKE', 'IN',
+            'NOT', 'CLUDES', 'EXCLUDES'
+        };
+        for (String keyword : forbidden) {
+            if (Pattern.compile('(^|[^A-Z0-9_])' + keyword + '([^A-Z0-9_]|$)')
+                .matcher(upper).find()) {
+                throw new IllegalArgumentException(
+                    'Unsupported keyword in Contact exclusion criteria: ' + keyword
+                );
+            }
+        }
+        if (trimmed.contains(';') || trimmed.contains('--') ||
+            trimmed.contains('/*') || trimmed.contains('*/') ||
+            trimmed.contains(':')) {
+            throw new IllegalArgumentException('Unsafe token in Contact exclusion criteria.');
+        }
+
+        List<String> tokens = tokenizeCriteria(trimmed);
+        CriteriaParser parser = new CriteriaParser(tokens);
+        parser.parseExpression();
+        if (parser.hasMore()) {
+            throw new IllegalArgumentException(
+                'Unexpected token in Contact exclusion criteria: ' + parser.peek()
+            );
+        }
+        return trimmed;
+    }
+
+    private class CriteriaParser {
+        private List<String> tokens;
+        private Integer position = 0;
+        private Map<String, Schema.SObjectField> contactFields =
+            Schema.SObjectType.Contact.fields.getMap();
+
+        CriteriaParser(List<String> tokens) {
+            this.tokens = tokens;
+        }
+
+        Boolean hasMore() {
+            return position < tokens.size();
+        }
+
+        String peek() {
+            return hasMore() ? tokens[position] : null;
+        }
+
+        String consume() {
+            return tokens[position++];
+        }
+
+        void parseExpression() {
+            parseTerm();
+            while (hasMore() && peek().equalsIgnoreCase('OR')) {
+                consume();
+                parseTerm();
+            }
+        }
+
+        void parseTerm() {
+            parseFactor();
+            while (hasMore() && peek().equalsIgnoreCase('AND')) {
+                consume();
+                parseFactor();
+            }
+        }
+
+        void parseFactor() {
+            if (hasMore() && peek() == '(') {
+                consume();
+                parseExpression();
+                require(')');
+                return;
+            }
+            parseComparison();
+        }
+
+        void parseComparison() {
+            if (!hasMore()) {
+                throw new IllegalArgumentException('Expected a Contact field name.');
+            }
+            String fieldName = consume();
+            if (!contactFields.containsKey(fieldName)) {
+                throw new IllegalArgumentException(
+                    'Invalid Contact field in exclusion criteria: ' + fieldName
+                );
+            }
+            if (!contactFields.get(fieldName).getDescribe().isFilterable()) {
+                throw new IllegalArgumentException(
+                    'Contact field is not filterable: ' + fieldName
+                );
+            }
+
+            if (!hasMore()) {
+                throw new IllegalArgumentException('Expected a comparison operator after ' + fieldName + '.');
+            }
+            String operatorToken = consume();
+            if (!new Set<String>{ '=', '!=', '<', '<=', '>', '>=' }.contains(operatorToken)) {
+                throw new IllegalArgumentException('Unsupported comparison operator: ' + operatorToken);
+            }
+
+            if (!hasMore()) {
+                throw new IllegalArgumentException('Expected a literal value after ' + operatorToken + '.');
+            }
+            String literal = consume();
+            validateLiteral(literal);
+        }
+
+        void require(String expected) {
+            if (!hasMore() || peek() != expected) {
+                throw new IllegalArgumentException('Expected ' + expected + ' in Contact exclusion criteria.');
+            }
+            consume();
+        }
+
+        void validateLiteral(String token) {
+            String upperToken = token.toUpperCase();
+            if (upperToken == 'NULL' || upperToken == 'TRUE' || upperToken == 'FALSE') {
+                return;
+            }
+            if (token.startsWith('\'') && token.endsWith('\'')) {
+                return;
+            }
+            if (Pattern.matches('^-?[0-9]+(\\.[0-9]+)?$', token)) {
+                return;
+            }
+            if (Pattern.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$', token)) {
+                return;
+            }
+            throw new IllegalArgumentException('Unsupported literal value: ' + token);
+        }
+    }
+
+    @TestVisible
+    static List<String> tokenizeCriteria(String criteria) {
+        List<String> tokens = new List<String>();
+        Integer i = 0;
+        while (i < criteria.length()) {
+            String ch = criteria.substring(i, i + 1);
+            if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+                i++;
+                continue;
+            }
+            if (ch == '(' || ch == ')') {
+                tokens.add(ch);
+                i++;
+                continue;
+            }
+            if (ch == '<' || ch == '>' || ch == '!' || ch == '=') {
+                String op = ch;
+                if (i + 1 < criteria.length() && criteria.substring(i + 1, i + 2) == '=') {
+                    op += '=';
+                    i++;
+                }
+                tokens.add(op);
+                i++;
+                continue;
+            }
+            if (ch == '\'') {
+                Integer start = i;
+                i++;
+                Boolean closed = false;
+                while (i < criteria.length()) {
+                    if (criteria.substring(i, i + 1) == '\'') {
+                        if (i + 1 < criteria.length() && criteria.substring(i + 1, i + 2) == '\'') {
+                            i += 2;
+                            continue;
+                        }
+                        i++;
+                        closed = true;
+                        break;
+                    }
+                    i++;
+                }
+                if (!closed) {
+                    throw new IllegalArgumentException('Unterminated string literal in Contact exclusion criteria.');
+                }
+                tokens.add(criteria.substring(start, i));
+                continue;
+            }
+
+            Integer start = i;
+            while (i < criteria.length()) {
+                String current = criteria.substring(i, i + 1);
+                if (current == ' ' || current == '\t' || current == '\r' || current == '\n' ||
+                    current == '(' || current == ')' || current == '<' || current == '>' ||
+                    current == '!' || current == '=') {
+                    break;
+                }
+                i++;
+            }
+            if (start == i) {
+                throw new IllegalArgumentException('Invalid character in Contact exclusion criteria.');
+            }
+            tokens.add(criteria.substring(start, i));
+        }
+        if (tokens.isEmpty()) {
+            throw new IllegalArgumentException('Contact exclusion criteria is empty.');
+        }
+        return tokens;
+    }
+
+    @TestVisible
+    static String findFilterableMatchField(List<String> matchFields) {
+        Map<String, Schema.SObjectField> contactFields = Schema.SObjectType.Contact.fields.getMap();
+        for (String fieldName : matchFields) {
+            Schema.SObjectField fieldToken = contactFields.get(fieldName);
+            if (fieldToken != null && fieldToken.getDescribe().isFilterable()) {
+                return fieldName;
+            }
+        }
+        throw new IllegalArgumentException('At least one Contact match field must be filterable.');
+    }
+
+    @TestVisible
+    static void validateMatchFields(List<String> matchFields) {
+        if (matchFields == null || matchFields.isEmpty()) {
+            throw new IllegalArgumentException('At least one Contact match field is required.');
+        }
+
+        Map<String, Schema.SObjectField> contactFields = Schema.SObjectType.Contact.fields.getMap();
+        Set<String> seen = new Set<String>();
+        for (String fieldName : matchFields) {
+            if (String.isBlank(fieldName) || !contactFields.containsKey(fieldName)) {
+                throw new IllegalArgumentException('Invalid Contact match field: ' + fieldName);
+            }
+            if (seen.contains(fieldName)) {
+                throw new IllegalArgumentException('Duplicate Contact match field: ' + fieldName);
+            }
+            seen.add(fieldName);
+        }
+    }
+
+    @TestVisible
+    static String buildSoqlLiteralList(Set<Object> values) {
+        List<String> literals = new List<String>();
+        for (Object value : values) {
+            literals.add(toSoqlLiteral(value));
+        }
+        literals.sort();
+        return String.join(literals, ',');
+    }
+
+    @TestVisible
+    static String toSoqlLiteral(Object value) {
+        if (value == null) {
+            return 'null';
+        }
+        if (value instanceof Date) {
+            return String.valueOf((Date)value);
+        }
+        if (value instanceof Datetime) {
+            return ((Datetime)value).formatGmt('yyyy-MM-dd\'T\'HH:mm:ss\'Z\'');
+        }
+        if (value instanceof Boolean || value instanceof Integer ||
+            value instanceof Long || value instanceof Decimal || value instanceof Double) {
+            return String.valueOf(value);
+        }
+        return '\'' + String.escapeSingleQuotes(String.valueOf(value)) + '\'';
     }
 
     @TestVisible
@@ -249,11 +633,11 @@ public without sharing class MM_Flow_SingleAccountMergeService {
     static List<String> parseMatchFields(String matchFieldsCsv) {
         List<String> matchFields = new List<String>();
 
-        if (String.isBlank(matchFieldsCsv)) {
-            return matchFields;
-        }
+        String effectiveCsv = String.isBlank(matchFieldsCsv)
+            ? DEFAULT_MATCH_FIELDS_CSV
+            : matchFieldsCsv;
 
-        for (String fieldName : matchFieldsCsv.split(',')) {
+        for (String fieldName : effectiveCsv.split(',')) {
             String trimmedField = fieldName == null ? '' : fieldName.trim();
             if (!String.isBlank(trimmedField)) {
                 matchFields.add(trimmedField);

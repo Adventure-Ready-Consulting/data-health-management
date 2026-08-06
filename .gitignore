@@ -14,3 +14,5 @@ test_results*
 /debug.log
 .cci
 src.zip
+DataHealthManagementSource*.zip
+*-diagnosis.json
