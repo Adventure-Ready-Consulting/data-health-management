@@ -7,6 +7,8 @@
         <members>DHM_SharedCode_Object</members>
         <members>DHM_SharedCode_TEST</members>
         <members>DHM_DuplicateCheckBatch_TEST</members>
+        <members>DHM_DuplicateRuleCandidateService</members>
+        <members>DHM_DuplicateRuleCandidateService_TEST</members>
         <members>DHM_DuplicateCheckBatch</members>
         <members>DHM_DuplicateCheckBatchLauncher</members>
         <members>DHM_DuplicateCheckBatchLauncher_TEST</members>

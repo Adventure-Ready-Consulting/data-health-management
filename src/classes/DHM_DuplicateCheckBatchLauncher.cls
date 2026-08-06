@@ -9,9 +9,6 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
         @InvocableVariable
         public Boolean performMerge;
 
-        @InvocableVariable
-        public String matchFieldsCsv;
-
         @InvocableVariable(
             label='Contact Exclusion Criteria'
             description='Validated Contact WHERE criteria. If any Contact in either Account matches, the Account merge is skipped. Example: C501_Age_Calculate__c < 18'
@@ -72,7 +69,6 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                 '***** DHM_DuplicateCheckBatchLauncher::run Request #' + reqIndex +
                 ' objectType=' + req.objectType +
                 ', performMerge=' + String.valueOf(req.performMerge) +
-                ', matchFieldsCsv=' + req.matchFieldsCsv +
                 ', contactExclusionCriteria=' + req.contactExclusionCriteria +
                 ', batchSize=' + String.valueOf(scopeSize)
             );
@@ -109,7 +105,7 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                 new DHM_DuplicateCheckBatch(
                     req.objectType,
                     req.performMerge,
-                    req.matchFieldsCsv,
+                    null,
                     req.contactExclusionCriteria
                 ),
                 scopeSize

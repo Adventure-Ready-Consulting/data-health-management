@@ -18,8 +18,6 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
             new DHM_DuplicateCheckBatchLauncher.Request();
         req.objectType = 'Contact';
         req.performMerge = false;
-        req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-
         Test.startTest();
         List<DHM_DuplicateCheckBatchLauncher.Result> results =
             DHM_DuplicateCheckBatchLauncher.run(
@@ -52,8 +50,6 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
             new DHM_DuplicateCheckBatchLauncher.Request();
         req.objectType = 'Account';
         req.performMerge = false;
-        req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-
         Test.startTest();
         List<DHM_DuplicateCheckBatchLauncher.Result> results =
             DHM_DuplicateCheckBatchLauncher.run(
@@ -71,8 +67,6 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
         DHM_DuplicateCheckBatchLauncher.Request req =
             new DHM_DuplicateCheckBatchLauncher.Request();
         req.performMerge = false;
-        req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-
         List<DHM_DuplicateCheckBatchLauncher.Result> results =
             DHM_DuplicateCheckBatchLauncher.run(
                 new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
@@ -89,8 +83,6 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
             new DHM_DuplicateCheckBatchLauncher.Request();
         req.objectType = 'Opportunity';
         req.performMerge = false;
-        req.matchFieldsCsv = 'Name';
-
         List<DHM_DuplicateCheckBatchLauncher.Result> results =
             DHM_DuplicateCheckBatchLauncher.run(
                 new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
@@ -136,8 +128,6 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
             new DHM_DuplicateCheckBatchLauncher.Request();
         req.objectType = 'Contact';
         req.performMerge = false;
-        req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-
         Test.startTest();
         DHM_DuplicateCheckBatchLauncher.start(
             new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
@@ -164,14 +154,10 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
             new DHM_DuplicateCheckBatchLauncher.Request();
         req1.objectType = 'Contact';
         req1.performMerge = false;
-        req1.matchFieldsCsv = 'FirstName,LastName,Birthdate';
-
         DHM_DuplicateCheckBatchLauncher.Request req2 =
             new DHM_DuplicateCheckBatchLauncher.Request();
         req2.objectType = 'Opportunity';
         req2.performMerge = false;
-        req2.matchFieldsCsv = 'Name';
-
         Test.startTest();
         List<DHM_DuplicateCheckBatchLauncher.Result> results =
             DHM_DuplicateCheckBatchLauncher.run(

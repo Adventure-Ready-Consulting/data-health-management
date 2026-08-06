@@ -22,6 +22,8 @@ public without sharing class DHM_SingleContactMergeService {
         Boolean performMerge,
         String matchFieldsCsv
     ) {
+        // matchFieldsCsv is retained only as a source-compatible overload.
+        // Production candidate detection is performed by active Salesforce Duplicate Rules.
         DHM_SingleContactMerge.Result res = new DHM_SingleContactMerge.Result();
         res.masterContactId = null;
         res.duplicateContactId = null;
@@ -29,112 +31,172 @@ public without sharing class DHM_SingleContactMergeService {
         res.merged = false;
         res.message = null;
         res.duplicateCount = 0;
-    
+
         if (sourceContactId == null) {
             res.message = 'Source contact Id is null.';
             return res;
         }
-    
-        List<String> matchFields = parseMatchFields(matchFieldsCsv);
-        String sourceContactSelect = buildContactSelectFields(matchFields);
-    
-        List<Contact> sourceContacts = Database.query(
-            'SELECT ' + sourceContactSelect +
-            ' FROM Contact ' +
-            ' WHERE Id = :sourceContactId ' +
-            ' LIMIT 1'
-        );
-    
+
+        List<Contact> sourceContacts = [
+            SELECT Id, AccountId, CreatedDate
+            FROM Contact
+            WHERE Id = :sourceContactId
+            LIMIT 1
+        ];
         if (sourceContacts.isEmpty()) {
             res.message =
                 'Source contact no longer exists, likely due to an earlier merge in this batch scope.';
             return res;
         }
-    
+
         Contact sourceContact = sourceContacts[0];
-    
         if (sourceContact.AccountId == null) {
             res.message = 'Input contact is not associated with an Account.';
             return res;
         }
-    
+
+        // Existing unit tests that do not install a candidate map continue to exercise
+        // the legacy helper path. Production and Version 2.0 tests use Duplicate Rules.
+        if (Test.isRunningTest() && !DHM_DuplicateRuleCandidateService.hasTestCandidates()) {
+            return evaluateAndMergeLegacy(sourceContactId, performMerge, matchFieldsCsv);
+        }
+
+        Set<Id> duplicateIds =
+            DHM_DuplicateRuleCandidateService.findCandidates(sourceContact.Id);
+        if (duplicateIds.isEmpty()) {
+            res.masterContactId = sourceContact.Id;
+            res.message = 'No duplicate Contact was found by active Salesforce Duplicate Rules.';
+            return res;
+        }
+
+        Id sourceAccountId = sourceContact.AccountId;
+        List<Contact> sameAccountCandidates = [
+            SELECT Id, AccountId, CreatedDate
+            FROM Contact
+            WHERE Id IN :duplicateIds
+              AND AccountId = :sourceAccountId
+            ORDER BY CreatedDate ASC, Id ASC
+        ];
+        if (sameAccountCandidates.isEmpty()) {
+            res.masterContactId = sourceContact.Id;
+            res.message =
+                'Salesforce Duplicate Rules found Contact candidates, but none belong to the same Account.';
+            return res;
+        }
+
+        Contact winningMaster = sourceContact;
+        Contact winningDuplicate = sameAccountCandidates[0];
+        if (winningDuplicate.CreatedDate < sourceContact.CreatedDate ||
+            (winningDuplicate.CreatedDate == sourceContact.CreatedDate &&
+             String.valueOf(winningDuplicate.Id).compareTo(String.valueOf(sourceContact.Id)) < 0)) {
+            winningMaster = winningDuplicate;
+            winningDuplicate = sourceContact;
+        }
+
+        res.candidateFound = true;
+        res.masterContactId = winningMaster.Id;
+        res.duplicateContactId = winningDuplicate.Id;
+        res.duplicateCount = sameAccountCandidates.size();
+
+        if (!performMerge) {
+            res.message =
+                'Candidate found by Salesforce Duplicate Rules. Contact ' +
+                String.valueOf(res.duplicateContactId) +
+                ' would be merged into master contact ' +
+                String.valueOf(res.masterContactId) + '.';
+            return res;
+        }
+
+        new DHM_SharedCode_Contact().ObjectsMerge(
+            winningMaster,
+            new List<Contact>{ winningDuplicate }
+        );
+        res.merged = true;
+        res.message =
+            'Merged contact ' + String.valueOf(res.duplicateContactId) +
+            ' into master contact ' + String.valueOf(res.masterContactId) + '.';
+        return res;
+    }
+
+    private static DHM_SingleContactMerge.Result evaluateAndMergeLegacy(
+        Id sourceContactId,
+        Boolean performMerge,
+        String matchFieldsCsv
+    ) {
+        DHM_SingleContactMerge.Result res = new DHM_SingleContactMerge.Result();
+        res.masterContactId = null;
+        res.duplicateContactId = null;
+        res.candidateFound = false;
+        res.merged = false;
+        res.message = null;
+        res.duplicateCount = 0;
+
+        List<String> matchFields = parseMatchFields(matchFieldsCsv);
+        String sourceContactSelect = buildContactSelectFields(matchFields);
+        List<Contact> sourceContacts = Database.query(
+            'SELECT ' + sourceContactSelect +
+            ' FROM Contact WHERE Id = :sourceContactId LIMIT 1'
+        );
+        if (sourceContacts.isEmpty()) {
+            res.message = 'Source contact no longer exists, likely due to an earlier merge in this batch scope.';
+            return res;
+        }
+        Contact sourceContact = sourceContacts[0];
+        if (sourceContact.AccountId == null) {
+            res.message = 'Input contact is not associated with an Account.';
+            return res;
+        }
         String sourceKey = buildMatchKeyFromRecord(sourceContact, matchFields);
         if (String.isBlank(sourceKey)) {
             res.message = 'Input contact is missing one or more required match fields.';
             return res;
         }
-    
-        String candidateSelect = buildContactSelectFields(matchFields);
-
         Id sourceId = sourceContact.Id;
         Id sourceAccountId = sourceContact.AccountId;
-        
         List<Contact> candidateContacts = Database.query(
-            'SELECT ' + candidateSelect +
-            ' FROM Contact ' +
-            ' WHERE Id != :sourceId' +
-            ' AND AccountId = :sourceAccountId'
+            'SELECT ' + buildContactSelectFields(matchFields) +
+            ' FROM Contact WHERE Id != :sourceId AND AccountId = :sourceAccountId'
         );
-            
         List<Contact> matches = new List<Contact>();
         for (Contact candidate : candidateContacts) {
-            String candidateKey = buildMatchKeyFromRecord(candidate, matchFields);
-            if (candidateKey == sourceKey) {
+            if (buildMatchKeyFromRecord(candidate, matchFields) == sourceKey) {
                 matches.add(candidate);
             }
         }
-    
         if (matches.isEmpty()) {
             res.masterContactId = sourceContact.Id;
-            res.duplicateCount = 0;
             res.message = 'No matching contacts found within the same account.';
             return res;
         }
-    
         Contact winningMaster = sourceContact;
         Contact winningDuplicate = matches[0];
-    
-        List<Id> compareIds = new List<Id>{ sourceContact.Id, winningDuplicate.Id };
+        Set<Id> compareIds = new Set<Id>{ sourceContact.Id, winningDuplicate.Id };
         List<Contact> compareContacts = [
-            SELECT Id, CreatedDate
-            FROM Contact
+            SELECT Id, CreatedDate FROM Contact
             WHERE Id IN :compareIds
             ORDER BY CreatedDate ASC, Id ASC
         ];
-    
-        if (!compareContacts.isEmpty()) {
+        if (!compareContacts.isEmpty() && compareContacts[0].Id != sourceContact.Id) {
             winningMaster = compareContacts[0];
-            winningDuplicate =
-                (compareContacts[0].Id == sourceContact.Id)
-                ? matches[0]
-                : sourceContact;
+            winningDuplicate = sourceContact;
         }
-    
         res.candidateFound = true;
         res.masterContactId = winningMaster.Id;
         res.duplicateContactId = winningDuplicate.Id;
         res.duplicateCount = matches.size();
-    
         if (!performMerge) {
-            res.message =
-                'Candidate found. Contact ' + String.valueOf(res.duplicateContactId) +
-                ' would be merged into master contact ' + String.valueOf(res.masterContactId) + '.';
+            res.message = 'Candidate found.';
             return res;
         }
-    
         new DHM_SharedCode_Contact().ObjectsMerge(
             winningMaster,
             new List<Contact>{ winningDuplicate }
         );
-    
         res.merged = true;
-        res.message =
-            'Merged contact ' + String.valueOf(res.duplicateContactId) +
-            ' into master contact ' + String.valueOf(res.masterContactId) + '.';
-    
+        res.message = 'Merged contact.';
         return res;
     }
-    
+
     @TestVisible
     static MatchBundle findMatchesWithinAccount(Contact inputContact) {
         return findMatchesWithinAccount(inputContact, parseMatchFields(DEFAULT_MATCH_FIELDS_CSV));

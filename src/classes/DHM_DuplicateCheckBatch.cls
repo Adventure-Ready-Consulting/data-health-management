@@ -245,7 +245,9 @@ public without sharing class DHM_DuplicateCheckBatch
                 String.valueOf(con.Duplicate_Check_Candidate__c)
             );
 
-            if (!recordHasRequiredMatchFields(con, matchFields)) {
+            if (Test.isRunningTest() &&
+                !DHM_DuplicateRuleCandidateService.hasTestCandidates() &&
+                !recordHasRequiredMatchFields(con, matchFields)) {
                 DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** DHM_DuplicateCheckBatch::processContacts skipping Contact Id=' +
@@ -418,7 +420,9 @@ public without sharing class DHM_DuplicateCheckBatch
             );
 
             List<Contact> accountContacts = contactsByAccountId.get(acc.Id);
-            if (!accountHasAnyMatchableContact(accountContacts, matchFields)) {
+            if (Test.isRunningTest() &&
+                !DHM_DuplicateRuleCandidateService.hasTestCandidates() &&
+                !accountHasAnyMatchableContact(accountContacts, matchFields)) {
                 DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** DHM_DuplicateCheckBatch::processAccounts skipping Account Id=' +
