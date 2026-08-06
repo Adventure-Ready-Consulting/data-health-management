@@ -1,5 +1,5 @@
 @IsTest
-private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
+private class DHM_DuplicateCheckBatchLauncher_TEST {
 
     @IsTest
     static void testRunContactBatch() {
@@ -14,23 +14,23 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
             Duplicate_Check__c = true
         );
 
-        MM_Flow_DuplicateCheckBatchLauncher.Request req =
-            new MM_Flow_DuplicateCheckBatchLauncher.Request();
+        DHM_DuplicateCheckBatchLauncher.Request req =
+            new DHM_DuplicateCheckBatchLauncher.Request();
         req.objectType = 'Contact';
         req.performMerge = false;
         req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
 
         Test.startTest();
-        List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
-            MM_Flow_DuplicateCheckBatchLauncher.run(
-                new List<MM_Flow_DuplicateCheckBatchLauncher.Request>{ req }
+        List<DHM_DuplicateCheckBatchLauncher.Result> results =
+            DHM_DuplicateCheckBatchLauncher.run(
+                new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
             );
         Test.stopTest();
 
         System.assertEquals(1, results.size());
         System.assertNotEquals(null, results[0].jobId);
         System.assertEquals('Queued duplicate check batch job.', results[0].message);
-        System.assertEquals(1, MM_Flow_DuplicateCheckBatchLauncher.DEFAULT_BATCH_SIZE);
+        System.assertEquals(1, DHM_DuplicateCheckBatchLauncher.DEFAULT_BATCH_SIZE);
     }
 
     @IsTest
@@ -48,16 +48,16 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
             Birthdate = Date.newInstance(1990, 1, 1)
         );
 
-        MM_Flow_DuplicateCheckBatchLauncher.Request req =
-            new MM_Flow_DuplicateCheckBatchLauncher.Request();
+        DHM_DuplicateCheckBatchLauncher.Request req =
+            new DHM_DuplicateCheckBatchLauncher.Request();
         req.objectType = 'Account';
         req.performMerge = false;
         req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
 
         Test.startTest();
-        List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
-            MM_Flow_DuplicateCheckBatchLauncher.run(
-                new List<MM_Flow_DuplicateCheckBatchLauncher.Request>{ req }
+        List<DHM_DuplicateCheckBatchLauncher.Result> results =
+            DHM_DuplicateCheckBatchLauncher.run(
+                new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
             );
         Test.stopTest();
 
@@ -68,14 +68,14 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
 
     @IsTest
     static void testRunMissingObjectType() {
-        MM_Flow_DuplicateCheckBatchLauncher.Request req =
-            new MM_Flow_DuplicateCheckBatchLauncher.Request();
+        DHM_DuplicateCheckBatchLauncher.Request req =
+            new DHM_DuplicateCheckBatchLauncher.Request();
         req.performMerge = false;
         req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
 
-        List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
-            MM_Flow_DuplicateCheckBatchLauncher.run(
-                new List<MM_Flow_DuplicateCheckBatchLauncher.Request>{ req }
+        List<DHM_DuplicateCheckBatchLauncher.Result> results =
+            DHM_DuplicateCheckBatchLauncher.run(
+                new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
             );
 
         System.assertEquals(1, results.size());
@@ -85,15 +85,15 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
 
     @IsTest
     static void testRunUnsupportedObjectType() {
-        MM_Flow_DuplicateCheckBatchLauncher.Request req =
-            new MM_Flow_DuplicateCheckBatchLauncher.Request();
+        DHM_DuplicateCheckBatchLauncher.Request req =
+            new DHM_DuplicateCheckBatchLauncher.Request();
         req.objectType = 'Opportunity';
         req.performMerge = false;
         req.matchFieldsCsv = 'Name';
 
-        List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
-            MM_Flow_DuplicateCheckBatchLauncher.run(
-                new List<MM_Flow_DuplicateCheckBatchLauncher.Request>{ req }
+        List<DHM_DuplicateCheckBatchLauncher.Result> results =
+            DHM_DuplicateCheckBatchLauncher.run(
+                new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
             );
 
         System.assertEquals(1, results.size());
@@ -103,9 +103,9 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
 
     @IsTest
     static void testRunEmptyRequests() {
-        List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
-            MM_Flow_DuplicateCheckBatchLauncher.run(
-                new List<MM_Flow_DuplicateCheckBatchLauncher.Request>()
+        List<DHM_DuplicateCheckBatchLauncher.Result> results =
+            DHM_DuplicateCheckBatchLauncher.run(
+                new List<DHM_DuplicateCheckBatchLauncher.Request>()
             );
 
         System.assertEquals(0, results.size());
@@ -113,8 +113,8 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
 
     @IsTest
     static void testRunNullRequests() {
-        List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
-            MM_Flow_DuplicateCheckBatchLauncher.run(null);
+        List<DHM_DuplicateCheckBatchLauncher.Result> results =
+            DHM_DuplicateCheckBatchLauncher.run(null);
 
         System.assertEquals(0, results.size());
     }
@@ -132,15 +132,15 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
             Duplicate_Check__c = true
         );
 
-        MM_Flow_DuplicateCheckBatchLauncher.Request req =
-            new MM_Flow_DuplicateCheckBatchLauncher.Request();
+        DHM_DuplicateCheckBatchLauncher.Request req =
+            new DHM_DuplicateCheckBatchLauncher.Request();
         req.objectType = 'Contact';
         req.performMerge = false;
         req.matchFieldsCsv = 'FirstName,LastName,Birthdate';
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatchLauncher.start(
-            new List<MM_Flow_DuplicateCheckBatchLauncher.Request>{ req }
+        DHM_DuplicateCheckBatchLauncher.start(
+            new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
         );
         Test.stopTest();
 
@@ -160,22 +160,22 @@ private class MM_Flow_DuplicateCheckBatchLauncher_TEST {
             Duplicate_Check__c = true
         );
 
-        MM_Flow_DuplicateCheckBatchLauncher.Request req1 =
-            new MM_Flow_DuplicateCheckBatchLauncher.Request();
+        DHM_DuplicateCheckBatchLauncher.Request req1 =
+            new DHM_DuplicateCheckBatchLauncher.Request();
         req1.objectType = 'Contact';
         req1.performMerge = false;
         req1.matchFieldsCsv = 'FirstName,LastName,Birthdate';
 
-        MM_Flow_DuplicateCheckBatchLauncher.Request req2 =
-            new MM_Flow_DuplicateCheckBatchLauncher.Request();
+        DHM_DuplicateCheckBatchLauncher.Request req2 =
+            new DHM_DuplicateCheckBatchLauncher.Request();
         req2.objectType = 'Opportunity';
         req2.performMerge = false;
         req2.matchFieldsCsv = 'Name';
 
         Test.startTest();
-        List<MM_Flow_DuplicateCheckBatchLauncher.Result> results =
-            MM_Flow_DuplicateCheckBatchLauncher.run(
-                new List<MM_Flow_DuplicateCheckBatchLauncher.Request>{ req1, req2 }
+        List<DHM_DuplicateCheckBatchLauncher.Result> results =
+            DHM_DuplicateCheckBatchLauncher.run(
+                new List<DHM_DuplicateCheckBatchLauncher.Request>{ req1, req2 }
             );
         Test.stopTest();
 

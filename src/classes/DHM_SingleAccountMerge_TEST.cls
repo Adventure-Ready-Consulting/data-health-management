@@ -1,5 +1,5 @@
 @IsTest
-private class MM_Flow_SingleAccountMerge_TEST {
+private class DHM_SingleAccountMerge_TEST {
 
     @IsTest
     static void testCandidateFound() {
@@ -35,8 +35,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
         };
 
         Test.startTest();
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false
             );
@@ -71,8 +71,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
             )
         };
 
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false
             );
@@ -90,8 +90,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
         Account source = new Account(Name = 'Source No Contacts');
         insert source;
 
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false
             );
@@ -122,8 +122,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
             )
         };
 
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false
             );
@@ -154,8 +154,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
             )
         };
 
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false,
                 'FirstName,LastName,Birthdate'
@@ -168,16 +168,16 @@ private class MM_Flow_SingleAccountMerge_TEST {
 
     @IsTest
     static void testParseHelpers() {
-        List<String> parsed = MM_Flow_SingleAccountMergeService.parseMatchFields(' FirstName , LastName , Birthdate ');
+        List<String> parsed = DHM_SingleAccountMergeService.parseMatchFields(' FirstName , LastName , Birthdate ');
         System.assertEquals(3, parsed.size());
         System.assertEquals('FirstName', parsed[0]);
         System.assertEquals('LastName', parsed[1]);
         System.assertEquals('Birthdate', parsed[2]);
 
-        List<String> parsedBlank = MM_Flow_SingleAccountMergeService.parseMatchFields(null);
+        List<String> parsedBlank = DHM_SingleAccountMergeService.parseMatchFields(null);
         System.assertEquals(3, parsedBlank.size());
 
-        List<String> parsedEmpty = MM_Flow_SingleAccountMergeService.parseMatchFields('');
+        List<String> parsedEmpty = DHM_SingleAccountMergeService.parseMatchFields('');
         System.assertEquals(3, parsedEmpty.size());
     }
 
@@ -186,8 +186,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
         Account source = new Account(Name = 'Source Empty');
         insert source;
 
-        MM_Flow_SingleAccountMergeService.MatchBundle bundle =
-            MM_Flow_SingleAccountMergeService.findTargetAccountForSource(
+        DHM_SingleAccountMergeService.MatchBundle bundle =
+            DHM_SingleAccountMergeService.findTargetAccountForSource(
                 source,
                 new List<Contact>(),
                 new List<String>{ 'FirstName', 'LastName', 'Birthdate' }
@@ -215,8 +215,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
             WHERE AccountId = :source.Id
         ];
 
-        MM_Flow_SingleAccountMergeService.MatchBundle bundle =
-            MM_Flow_SingleAccountMergeService.findTargetAccountForSource(
+        DHM_SingleAccountMergeService.MatchBundle bundle =
+            DHM_SingleAccountMergeService.findTargetAccountForSource(
                 source,
                 sourceContacts,
                 new List<String>{ 'FirstName', 'LastName', 'Birthdate' }
@@ -264,8 +264,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
         insert new List<Contact>{ sourceC1, sourceC2, targetC1, targetC2 };
 
         Test.startTest();
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 true
             );
@@ -308,8 +308,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
             new Contact(AccountId = target.Id, FirstName = 'Extra', LastName = 'Adult', Birthdate = Date.newInstance(1975, 3, 20))
         };
 
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(source.Id, false);
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false);
 
         System.assertEquals(true, result.candidateFound);
         System.assertEquals(target.Id, result.targetAccountId);
@@ -326,8 +326,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
             new Contact(AccountId = target.Id, LastName = 'Different', Email = 'person@example.org')
         };
 
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false,
                 'Email'
@@ -353,8 +353,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
             new Contact(AccountId = targetTwoMatches.Id, FirstName = 'Alex', LastName = 'Same', Birthdate = dob)
         };
 
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(source.Id, false);
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false);
 
         System.assertEquals(true, result.candidateFound);
         System.assertEquals(targetTwoMatches.Id, result.targetAccountId);
@@ -372,8 +372,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
             new Contact(AccountId = target.Id, FirstName = 'Young', LastName = 'Person', Birthdate = minorDob)
         };
 
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false,
                 'FirstName,LastName,Birthdate',
@@ -398,8 +398,8 @@ private class MM_Flow_SingleAccountMerge_TEST {
             new Contact(AccountId = target.Id, FirstName = 'Child', LastName = 'Person', Birthdate = minorDob)
         };
 
-        MM_Flow_SingleAccountMerge.Result result =
-            MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false,
                 'FirstName,LastName,Birthdate',
@@ -415,11 +415,11 @@ private class MM_Flow_SingleAccountMerge_TEST {
 
     @IsTest
     static void testMoveMatchedContactsToMaster_NoOpAndUpdatePath() {
-        MM_Flow_SingleAccountMergeService.moveMatchedContactsToMaster(null);
+        DHM_SingleAccountMergeService.moveMatchedContactsToMaster(null);
 
-        MM_Flow_SingleAccountMergeService.MatchBundle emptyBundle =
-            new MM_Flow_SingleAccountMergeService.MatchBundle();
-        MM_Flow_SingleAccountMergeService.moveMatchedContactsToMaster(emptyBundle);
+        DHM_SingleAccountMergeService.MatchBundle emptyBundle =
+            new DHM_SingleAccountMergeService.MatchBundle();
+        DHM_SingleAccountMergeService.moveMatchedContactsToMaster(emptyBundle);
 
         Account source = new Account(Name = 'Move Source');
         Account target = new Account(Name = 'Move Target');
@@ -433,19 +433,19 @@ private class MM_Flow_SingleAccountMerge_TEST {
         );
         insert sourceCon;
 
-        MM_Flow_SingleAccountMergeService.MatchBundle bundle =
-            new MM_Flow_SingleAccountMergeService.MatchBundle();
+        DHM_SingleAccountMergeService.MatchBundle bundle =
+            new DHM_SingleAccountMergeService.MatchBundle();
         bundle.sourceAccountId = source.Id;
         bundle.targetAccountId = target.Id;
 
-        MM_Flow_SingleAccountMergeService.ContactMatch cm =
-            new MM_Flow_SingleAccountMergeService.ContactMatch();
+        DHM_SingleAccountMergeService.ContactMatch cm =
+            new DHM_SingleAccountMergeService.ContactMatch();
         cm.sourceContact = sourceCon;
         cm.targetContact = null;
         bundle.contactMatches.add(cm);
 
         Test.startTest();
-        MM_Flow_SingleAccountMergeService.moveMatchedContactsToMaster(bundle);
+        DHM_SingleAccountMergeService.moveMatchedContactsToMaster(bundle);
         Test.stopTest();
 
         Contact refreshed = [

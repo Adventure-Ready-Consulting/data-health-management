@@ -1,5 +1,5 @@
 @IsTest
-private class MM_Flow_DuplicateCheckBatch_TEST {
+private class DHM_DuplicateCheckBatch_TEST {
 
     @IsTest
     static void testBatchContactCandidateFound() {
@@ -25,7 +25,7 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatch.startBatch(
+        DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
             'FirstName,LastName,Birthdate'
@@ -76,7 +76,7 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatch.startBatch(
+        DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
             'FirstName,LastName,Birthdate'
@@ -109,7 +109,7 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatch.startBatch(
+        DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
             'FirstName,LastName,Birthdate'
@@ -142,7 +142,7 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatch.startBatch(
+        DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
             'FirstName,LastName,Birthdate'
@@ -201,7 +201,7 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         };
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatch.startBatch(
+        DHM_DuplicateCheckBatch.startBatch(
             'Account',
             false,
             'FirstName,LastName,Birthdate'
@@ -235,7 +235,7 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         );
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatch.startBatch(
+        DHM_DuplicateCheckBatch.startBatch(
             'Account',
             false,
             'FirstName,LastName,Birthdate'
@@ -269,7 +269,7 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         );
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatch.startBatch(
+        DHM_DuplicateCheckBatch.startBatch(
             'Account',
             false,
             'FirstName,LastName,Birthdate'
@@ -296,7 +296,7 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert acct;
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatch.startBatch(
+        DHM_DuplicateCheckBatch.startBatch(
             'Opportunity',
             false,
             'Name'
@@ -328,7 +328,7 @@ private class MM_Flow_DuplicateCheckBatch_TEST {
         insert flaggedCon;
 
         Test.startTest();
-        MM_Flow_DuplicateCheckBatch.startBatch(
+        DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
             ''

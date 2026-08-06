@@ -1,4 +1,4 @@
-public without sharing class MM_Flow_SingleContactMergeService {
+public without sharing class DHM_SingleContactMergeService {
 
     public static final String DEFAULT_MATCH_FIELDS_CSV = 'FirstName,LastName,Birthdate';
 
@@ -10,19 +10,19 @@ public without sharing class MM_Flow_SingleContactMergeService {
         public List<Contact> allMatchingContacts = new List<Contact>();
     }
 
-    public static MM_Flow_SingleContactMerge.Result evaluateAndMerge(
+    public static DHM_SingleContactMerge.Result evaluateAndMerge(
         Id sourceContactId,
         Boolean performMerge
     ) {
         return evaluateAndMerge(sourceContactId, performMerge, DEFAULT_MATCH_FIELDS_CSV);
     }
     
-    public static MM_Flow_SingleContactMerge.Result evaluateAndMerge(
+    public static DHM_SingleContactMerge.Result evaluateAndMerge(
         Id sourceContactId,
         Boolean performMerge,
         String matchFieldsCsv
     ) {
-        MM_Flow_SingleContactMerge.Result res = new MM_Flow_SingleContactMerge.Result();
+        DHM_SingleContactMerge.Result res = new DHM_SingleContactMerge.Result();
         res.masterContactId = null;
         res.duplicateContactId = null;
         res.candidateFound = false;
@@ -122,7 +122,7 @@ public without sharing class MM_Flow_SingleContactMergeService {
             return res;
         }
     
-        new MassMerge_SharedCode_Contact().ObjectsMerge(
+        new DHM_SharedCode_Contact().ObjectsMerge(
             winningMaster,
             new List<Contact>{ winningDuplicate }
         );
@@ -186,7 +186,7 @@ public without sharing class MM_Flow_SingleContactMergeService {
             return;
         }
 
-        new MassMerge_SharedCode_Contact().ObjectsMerge(
+        new DHM_SharedCode_Contact().ObjectsMerge(
             bundle.masterContact,
             bundle.duplicateContacts
         );

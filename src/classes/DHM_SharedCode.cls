@@ -1,4 +1,4 @@
-public without sharing class MassMerge_SharedCode {
+public without sharing class DHM_SharedCode {
 
     public enum MergeObjectScenarios { Account, Contacts_Within_Account, Contacts_Across_Accounts }
 
@@ -10,7 +10,7 @@ public without sharing class MassMerge_SharedCode {
     public static Integer MaximumSalesforceLimitsToUse {
         get {
             if (!fCheckedForMaximumSalesforceLimitsToUse) {
-                Mass_Merge_Config__c massMergeConfigSettings = Mass_Merge_Config__c.getOrgDefaults();
+                DHM_Settings__c massMergeConfigSettings = DHM_Settings__c.getOrgDefaults();
                 if (massMergeConfigSettings != null &&
                     massMergeConfigSettings.Maximum_Salesforce_Limits_to_Use__c != null) {
 
@@ -97,7 +97,7 @@ public without sharing class MassMerge_SharedCode {
             return false;
         }
 
-        if (MassMerge_SharedCode.isNPSPHiddenField(fieldName)) {
+        if (DHM_SharedCode.isNPSPHiddenField(fieldName)) {
             return false;
         }
 
@@ -124,7 +124,7 @@ public without sharing class MassMerge_SharedCode {
 
         String statusCode = String.valueOf(resultError.getStatusCode());
 
-        if (MassMerge_SharedCode.IsSandbox &&
+        if (DHM_SharedCode.IsSandbox &&
             (statusCode.contains('INVALID_CROSS_REFERENCE_KEY') ||
              statusCode.contains('INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY'))) {
             return false;
@@ -135,15 +135,15 @@ public without sharing class MassMerge_SharedCode {
             return false;
         }
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.ERROR,
             '***** ' + callingMethod + ' Database.SaveResult Error'
         );
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.ERROR,
             statusCode + ': ' + resultError.getMessage()
         );
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.ERROR,
             'Fields that affected this error: ' + resultError.getFields()
         );
@@ -163,7 +163,7 @@ public without sharing class MassMerge_SharedCode {
             return;
         }
 
-        Mass_Merge_Config__c massMergeConfigSettings = Mass_Merge_Config__c.getOrgDefaults();
+        DHM_Settings__c massMergeConfigSettings = DHM_Settings__c.getOrgDefaults();
 
         fEnableDebugLogging =
             (massMergeConfigSettings == null)
@@ -271,7 +271,7 @@ public without sharing class MassMerge_SharedCode {
             strList.add(String.valueOf(strToken));
         }
 
-        return MassMerge_SharedCode.GetSafeSoqlList(strList);
+        return DHM_SharedCode.GetSafeSoqlList(strList);
     }
 
     public static String GetSafeSoqlList(Set<Id> idSet) {
@@ -285,12 +285,12 @@ public without sharing class MassMerge_SharedCode {
             strList.add(String.valueOf(idToken));
         }
 
-        return MassMerge_SharedCode.GetSafeSoqlList(strList);
+        return DHM_SharedCode.GetSafeSoqlList(strList);
     }
 
     public static Integer GetMaximumCollectionSize() {
-        return MassMerge_SharedCode.GetMaximumLimitSize(1) < 999
-            ? MassMerge_SharedCode.GetMaximumLimitSize(1)
+        return DHM_SharedCode.GetMaximumLimitSize(1) < 999
+            ? DHM_SharedCode.GetMaximumLimitSize(1)
             : 999;
     }
 
@@ -309,9 +309,9 @@ public without sharing class MassMerge_SharedCode {
 
     public static Integer GetMaximumLimitSize(Integer groupByHavingCountMax) {
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MassMerge_SharedCode::GetMaximumLimitSize - groupByHavingCountMax: ' +
+            '***** DHM_SharedCode::GetMaximumLimitSize - groupByHavingCountMax: ' +
             groupByHavingCountMax
         );
 
@@ -319,9 +319,9 @@ public without sharing class MassMerge_SharedCode {
         Integer maximumLimitSize =
             ((Limits.getLimitQueryRows() - Limits.getQueryRows()) / 100) * percentageMultiple;
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MassMerge_SharedCode::GetMaximumLimitSize - Limits.getLimitQueryRows(): ' +
+            '***** DHM_SharedCode::GetMaximumLimitSize - Limits.getLimitQueryRows(): ' +
             Limits.getLimitQueryRows() + ' Limits.getQueryRows(): ' + Limits.getQueryRows()
         );
 
@@ -335,12 +335,12 @@ public without sharing class MassMerge_SharedCode {
     public static Boolean NearSalesforceLimits() {
 
         Boolean nearLimit = false;
-        Integer percentageMultiple = MassMerge_SharedCode.MaximumSalesforceLimitsToUse;
+        Integer percentageMultiple = DHM_SharedCode.MaximumSalesforceLimitsToUse;
 
         if (Limits.getAggregateQueries() > ((Limits.getLimitAggregateQueries() / 100) * percentageMultiple)) {
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.ERROR,
-                '***** MassMerge_SharedCode::NearSalesforceLimits - Aggregate Queries ' +
+                '***** DHM_SharedCode::NearSalesforceLimits - Aggregate Queries ' +
                 String.valueOf(percentageMultiple) + '% of Limit - ' +
                 Limits.getAggregateQueries() + ' of ' + Limits.getLimitAggregateQueries()
             );
@@ -348,9 +348,9 @@ public without sharing class MassMerge_SharedCode {
         }
 
         if (Limits.getDMLRows() > ((Limits.getLimitDMLRows() / 100) * percentageMultiple)) {
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.ERROR,
-                '***** MassMerge_SharedCode::NearSalesforceLimits - DML Rows ' +
+                '***** DHM_SharedCode::NearSalesforceLimits - DML Rows ' +
                 String.valueOf(percentageMultiple) + '% of Limit - ' +
                 Limits.getDMLRows() + ' of ' + Limits.getLimitDMLRows()
             );
@@ -358,9 +358,9 @@ public without sharing class MassMerge_SharedCode {
         }
 
         if (Limits.getDMLStatements() > ((Limits.getLimitDMLStatements() / 100) * percentageMultiple)) {
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.ERROR,
-                '***** MassMerge_SharedCode::NearSalesforceLimits - DML Statments ' +
+                '***** DHM_SharedCode::NearSalesforceLimits - DML Statments ' +
                 String.valueOf(percentageMultiple) + '% of Limit - ' +
                 Limits.getDMLStatements() + ' of ' + Limits.getLimitDMLStatements()
             );
@@ -368,9 +368,9 @@ public without sharing class MassMerge_SharedCode {
         }
 
         if (Limits.getQueries() > ((Limits.getLimitQueries() / 100) * percentageMultiple)) {
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.ERROR,
-                '***** MassMerge_SharedCode::NearSalesforceLimits - Queies ' +
+                '***** DHM_SharedCode::NearSalesforceLimits - Queies ' +
                 String.valueOf(percentageMultiple) + '% of Limit - ' +
                 Limits.getQueries() + ' of ' + Limits.getLimitQueries()
             );
@@ -378,9 +378,9 @@ public without sharing class MassMerge_SharedCode {
         }
 
         if (Limits.getQueryRows() > ((Limits.getLimitQueryRows() / 100) * percentageMultiple)) {
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.ERROR,
-                '***** MassMerge_SharedCode::NearSalesforceLimits - Query Rows ' +
+                '***** DHM_SharedCode::NearSalesforceLimits - Query Rows ' +
                 String.valueOf(percentageMultiple) + '% of Limit - ' +
                 Limits.getQueryRows() + ' of ' + Limits.getLimitQueryRows()
             );
@@ -388,9 +388,9 @@ public without sharing class MassMerge_SharedCode {
         }
 
         if (Limits.getSoslQueries() > ((Limits.getLimitSoslQueries() / 100) * percentageMultiple)) {
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.ERROR,
-                '***** MassMerge_SharedCode::NearSalesforceLimits - Sosl Queries ' +
+                '***** DHM_SharedCode::NearSalesforceLimits - Sosl Queries ' +
                 String.valueOf(percentageMultiple) + '% of Limit - ' +
                 Limits.getSoslQueries() + ' of ' + Limits.getLimitSoslQueries()
             );
@@ -398,9 +398,9 @@ public without sharing class MassMerge_SharedCode {
         }
 
         if (Limits.getCpuTime() > ((Limits.getLimitCpuTime() / 100) * percentageMultiple)) {
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.ERROR,
-                '***** MassMerge_SharedCode::NearSalesforceLimits - Cpu Time ' +
+                '***** DHM_SharedCode::NearSalesforceLimits - Cpu Time ' +
                 String.valueOf(percentageMultiple) + '% of Limit - ' +
                 Limits.getCpuTime() + ' of ' + Limits.getLimitCpuTime()
             );

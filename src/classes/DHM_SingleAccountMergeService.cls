@@ -1,4 +1,4 @@
-public without sharing class MM_Flow_SingleAccountMergeService {
+public without sharing class DHM_SingleAccountMergeService {
 
     public static final String DEFAULT_MATCH_FIELDS_CSV = 'FirstName,LastName,Birthdate';
 
@@ -13,14 +13,14 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         public Contact targetContact;
     }
 
-    public static MM_Flow_SingleAccountMerge.Result evaluateAndMerge(
+    public static DHM_SingleAccountMerge.Result evaluateAndMerge(
         Id sourceAccountId,
         Boolean performMerge
     ) {
         return evaluateAndMerge(sourceAccountId, performMerge, DEFAULT_MATCH_FIELDS_CSV, null);
     }
 
-    public static MM_Flow_SingleAccountMerge.Result evaluateAndMerge(
+    public static DHM_SingleAccountMerge.Result evaluateAndMerge(
         Id sourceAccountId,
         Boolean performMerge,
         String matchFieldsCsv
@@ -28,13 +28,13 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         return evaluateAndMerge(sourceAccountId, performMerge, matchFieldsCsv, null);
     }
 
-    public static MM_Flow_SingleAccountMerge.Result evaluateAndMerge(
+    public static DHM_SingleAccountMerge.Result evaluateAndMerge(
         Id sourceAccountId,
         Boolean performMerge,
         String matchFieldsCsv,
         String contactExclusionCriteria
     ) {
-        MM_Flow_SingleAccountMerge.Result res = new MM_Flow_SingleAccountMerge.Result();
+        DHM_SingleAccountMerge.Result res = new DHM_SingleAccountMerge.Result();
         res.sourceAccountId = sourceAccountId;
         res.targetAccountId = null;
         res.masterAccountId = null;
@@ -55,7 +55,7 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         Set<String> sourceFieldSet = new Set<String>(matchFields);
 
         String sourceContactSelect =
-            MM_Flow_SingleContactMergeService.buildContactSelectFields(
+            DHM_SingleContactMergeService.buildContactSelectFields(
                 new List<String>(sourceFieldSet)
             );
 
@@ -178,7 +178,7 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         Map<String, List<Contact>> sourceContactsByKey = new Map<String, List<Contact>>();
 
         for (Contact con : sourceContacts) {
-            String key = MM_Flow_SingleContactMergeService.buildMatchKeyFromRecord(con, matchFields);
+            String key = DHM_SingleContactMergeService.buildMatchKeyFromRecord(con, matchFields);
             if (key == null) {
                 return null;
             }
@@ -202,7 +202,7 @@ public without sharing class MM_Flow_SingleAccountMergeService {
 
         Set<String> candidateFieldSet = new Set<String>(matchFields);
         String candidateSelect =
-            MM_Flow_SingleContactMergeService.buildContactSelectFields(
+            DHM_SingleContactMergeService.buildContactSelectFields(
                 new List<String>(candidateFieldSet)
             );
 
@@ -225,7 +225,7 @@ public without sharing class MM_Flow_SingleAccountMergeService {
             new Map<Id, Map<String, List<Contact>>>();
 
         for (Contact con : possibleTargetContacts) {
-            String key = MM_Flow_SingleContactMergeService.buildMatchKeyFromRecord(con, matchFields);
+            String key = DHM_SingleContactMergeService.buildMatchKeyFromRecord(con, matchFields);
             if (!sourceKeyCounts.containsKey(key)) {
                 continue;
             }
@@ -623,7 +623,7 @@ public without sharing class MM_Flow_SingleAccountMergeService {
         Account target = [SELECT Id FROM Account WHERE Id = :targetAccountId LIMIT 1];
         Account source = [SELECT Id FROM Account WHERE Id = :sourceAccountId LIMIT 1];
 
-        new MassMerge_SharedCode_Account().ObjectsMerge(
+        new DHM_SharedCode_Account().ObjectsMerge(
             target,
             new List<Account>{ source }
         );

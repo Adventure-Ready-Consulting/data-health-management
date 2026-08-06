@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
-        <members>MassMerge_SharedCode</members>
-        <members>MassMerge_SharedCode_Account</members>
-        <members>MassMerge_SharedCode_Contact</members>
-        <members>MassMerge_SharedCode_Object</members>
-        <members>MassMerge_SharedCode_TEST</members>
-        <members>MM_Flow_DuplicateCheckBatch_TEST</members>
-        <members>MM_Flow_DuplicateCheckBatch</members>
-        <members>MM_Flow_DuplicateCheckBatchLauncher</members>
-        <members>MM_Flow_DuplicateCheckBatchLauncher_TEST</members>
-        <members>MM_Flow_SingleAccountMergeService</members>
-        <members>MM_Flow_SingleAccountMerge_TEST</members>
-        <members>MM_Flow_SingleContactMergeService</members>
-        <members>MM_Flow_SingleContactMerge_TEST</members>
+        <members>DHM_SharedCode</members>
+        <members>DHM_SharedCode_Account</members>
+        <members>DHM_SharedCode_Contact</members>
+        <members>DHM_SharedCode_Object</members>
+        <members>DHM_SharedCode_TEST</members>
+        <members>DHM_DuplicateCheckBatch_TEST</members>
+        <members>DHM_DuplicateCheckBatch</members>
+        <members>DHM_DuplicateCheckBatchLauncher</members>
+        <members>DHM_DuplicateCheckBatchLauncher_TEST</members>
+        <members>DHM_SingleAccountMergeService</members>
+        <members>DHM_SingleAccountMerge</members>
+        <members>DHM_SingleAccountMerge_TEST</members>
+        <members>DHM_SingleContactMergeService</members>
+        <members>DHM_SingleContactMerge</members>
+        <members>DHM_SingleContactMerge_TEST</members>
         <name>ApexClass</name>
     </types>
     <types>
@@ -26,27 +28,33 @@
         <members>Contact.Duplicate_Check_Candidate__c</members>
         <members>Contact.Duplicate_Check_Confidence__c</members>
         <members>Contact.Duplicate_Check_Error__c</members>
-        <members>C501_Merge_Account_History__c.Account__c</members>
-        <members>C501_Merge_Account_History__c.Merge_Value__c</members>
-        <members>C501_Merge_Account_History__c.Ignore_Value__c</members>
-        <members>C501_Merge_Account_History__c.Field__c</members>
-        <members>C501_Merge_Account_History__c.Action__c</members>
-        <members>C501_Merge_Contact_History__c.Contact__c</members>
-        <members>C501_Merge_Contact_History__c.Merge_Value__c</members>
-        <members>C501_Merge_Contact_History__c.Ignore_Value__c</members>
-        <members>C501_Merge_Contact_History__c.Field__c</members>
-        <members>C501_Merge_Contact_History__c.Action__c</members>
-        <members>Mass_Merge_Config__c.Maximum_Salesforce_Limits_to_Use__c</members>
-        <members>Mass_Merge_Config__c.Enable_Debug_Logging__c</members>
-        <members>Mass_Merge_Config__c.Enable_Error_Logging__c</members>
-        <members>Mass_Merge_Config__c.Log_Filter__c</members>
-        <members>Mass_Merge_Config__c.Merge_History_Write_All__c</members>
+        <members>DHM_Merge_Account_History__c.Account__c</members>
+        <members>DHM_Merge_Account_History__c.Merge_Value__c</members>
+        <members>DHM_Merge_Account_History__c.Ignore_Value__c</members>
+        <members>DHM_Merge_Account_History__c.Field__c</members>
+        <members>DHM_Merge_Account_History__c.Action__c</members>
+        <members>DHM_Merge_Account_History__c.User__c</members>
+        <members>DHM_Merge_Contact_History__c.Contact__c</members>
+        <members>DHM_Merge_Contact_History__c.Merge_Value__c</members>
+        <members>DHM_Merge_Contact_History__c.Ignore_Value__c</members>
+        <members>DHM_Merge_Contact_History__c.Field__c</members>
+        <members>DHM_Merge_Contact_History__c.Action__c</members>
+        <members>DHM_Merge_Contact_History__c.User__c</members>
+        <members>DHM_Settings__c.Maximum_Salesforce_Limits_to_Use__c</members>
+        <members>DHM_Settings__c.Enable_Debug_Logging__c</members>
+        <members>DHM_Settings__c.Enable_Error_Logging__c</members>
+        <members>DHM_Settings__c.Log_Filter__c</members>
+        <members>DHM_Settings__c.Merge_History_Write_All__c</members>
+        <members>DHM_Settings__c.Batch_Contact_Merging__c</members>
+        <members>DHM_Settings__c.Disable_All_Services__c</members>
+        <members>DHM_Settings__c.Maximum_Discover_Having_Count__c</members>
+        <members>DHM_Settings__c.Maximum_Records_Display__c</members>
         <name>CustomField</name>
     </types>
     <types>
-        <members>C501_Merge_Account_History__c</members>
-        <members>C501_Merge_Contact_History__c</members>
-        <members>Mass_Merge_Config__c</members>
+        <members>DHM_Merge_Account_History__c</members>
+        <members>DHM_Merge_Contact_History__c</members>
+        <members>DHM_Settings__c</members>
         <name>CustomObject</name>
     </types>
     <version>45.0</version>

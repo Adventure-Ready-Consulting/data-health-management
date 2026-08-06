@@ -1,4 +1,4 @@
-public without sharing class MassMerge_SharedCode_Object {
+public without sharing class DHM_SharedCode_Object {
 
     public static Set<String> AddressTypesAvailable = new Set<String>{
         'Mailing', 'Shipping', 'Other', 'Billing'
@@ -31,10 +31,10 @@ public without sharing class MassMerge_SharedCode_Object {
         if (fieldName.containsIgnoreCase('Phone') &&
             fieldDescribeResult.getType() == Schema.DisplayType.PHONE) {
 
-            if (MassMerge_SharedCode.IsNPSPInstalled && fieldName.equalsIgnoreCase('Phone')) {
-                MassMerge_SharedCode.OutputDebugLogText(
+            if (DHM_SharedCode.IsNPSPInstalled && fieldName.equalsIgnoreCase('Phone')) {
+                DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
-                    '***** MassMerge_SharedCode::ObjectsFieldMerge_Contact_HandlePhone Phone Field Skip since NPSP installed'
+                    '***** DHM_SharedCode::ObjectsFieldMerge_Contact_HandlePhone Phone Field Skip since NPSP installed'
                 );
             } else {
                 handlePhoneField = true;
@@ -67,10 +67,10 @@ public without sharing class MassMerge_SharedCode_Object {
         if (fieldName.containsIgnoreCase('Email') &&
             fieldDescribeResult.getType() == Schema.DisplayType.EMAIL) {
 
-            if (MassMerge_SharedCode.IsNPSPInstalled && fieldName.equalsIgnoreCase('Email')) {
-                MassMerge_SharedCode.OutputDebugLogText(
+            if (DHM_SharedCode.IsNPSPInstalled && fieldName.equalsIgnoreCase('Email')) {
+                DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
-                    '***** MassMerge_SharedCode::ObjectsFieldMerge_Contact_HandleEmail Email Field Skip since NPSP installed'
+                    '***** DHM_SharedCode::ObjectsFieldMerge_Contact_HandleEmail Email Field Skip since NPSP installed'
                 );
             } else {
                 handleEmailField = true;

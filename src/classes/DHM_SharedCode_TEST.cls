@@ -1,9 +1,9 @@
 @IsTest
-public class MassMerge_SharedCode_TEST {
+public class DHM_SharedCode_TEST {
 
     @IsTest
     static void sharedCode_HelperMethods_Work() {
-        String safeIdList = MassMerge_SharedCode.GetSafeSoqlList(
+        String safeIdList = DHM_SharedCode.GetSafeSoqlList(
             new Set<Id>{ UserInfo.getUserId() }
         );
         System.assert(
@@ -13,19 +13,19 @@ public class MassMerge_SharedCode_TEST {
 
         System.assertEquals(
             '(\'A\',\'B\')',
-            MassMerge_SharedCode.GetSafeSoqlList(new List<String>{ 'A', 'B' }),
+            DHM_SharedCode.GetSafeSoqlList(new List<String>{ 'A', 'B' }),
             'String list should be rendered as a quoted IN-list.'
         );
 
         System.assertEquals(
             '(\'\')',
-            MassMerge_SharedCode.GetSafeSoqlList(new List<String>()),
+            DHM_SharedCode.GetSafeSoqlList(new List<String>()),
             'Empty list should return a harmless empty token list.'
         );
 
         System.assertEquals(
             '(\'A\',\'B\')',
-            MassMerge_SharedCode.GetSafeSoqlList(new Set<String>{ 'A', 'B' }),
+            DHM_SharedCode.GetSafeSoqlList(new Set<String>{ 'A', 'B' }),
             'String set should be rendered as a quoted IN-list.'
         );
 
@@ -34,25 +34,25 @@ public class MassMerge_SharedCode_TEST {
 
         System.assertEquals(
             true,
-            MassMerge_SharedCode.isSafeMergeField('LastName', lastNameDescribe),
+            DHM_SharedCode.isSafeMergeField('LastName', lastNameDescribe),
             'LastName should be considered safe to merge.'
         );
 
         System.assertEquals(
             false,
-            MassMerge_SharedCode.isSafeMergeField('Id', idDescribe),
+            DHM_SharedCode.isSafeMergeField('Id', idDescribe),
             'Id should never be considered safe to merge.'
         );
 
         System.assertEquals(
             true,
-            MassMerge_SharedCode.isNPSPHiddenField('Current_Address__c'),
+            DHM_SharedCode.isNPSPHiddenField('Current_Address__c'),
             'Known hidden field should be treated as hidden.'
         );
 
         System.assertEquals(
             false,
-            MassMerge_SharedCode.isNPSPHiddenField('LastName'),
+            DHM_SharedCode.isNPSPHiddenField('LastName'),
             'Normal fields should not be treated as hidden.'
         );
     }
@@ -61,14 +61,14 @@ public class MassMerge_SharedCode_TEST {
     static void sharedCode_LimitAndQueryHelpers_AreCallable() {
         Test.startTest();
 
-        Boolean nearLimits = MassMerge_SharedCode.NearSalesforceLimits();
-        Integer maxCollection = MassMerge_SharedCode.GetMaximumCollectionSize();
-        Integer maxDml = MassMerge_SharedCode.GetMaximumDMLLimitSize();
-        Integer maxLimit1 = MassMerge_SharedCode.GetMaximumLimitSize(1);
-        Integer maxLimit5 = MassMerge_SharedCode.GetMaximumLimitSize(5);
+        Boolean nearLimits = DHM_SharedCode.NearSalesforceLimits();
+        Integer maxCollection = DHM_SharedCode.GetMaximumCollectionSize();
+        Integer maxDml = DHM_SharedCode.GetMaximumDMLLimitSize();
+        Integer maxLimit1 = DHM_SharedCode.GetMaximumLimitSize(1);
+        Integer maxLimit5 = DHM_SharedCode.GetMaximumLimitSize(5);
 
-        MassMerge_SharedCode.OutputDebugLogText(LoggingLevel.DEBUG, 'test debug log');
-        MassMerge_SharedCode.OutputDebugLogText(LoggingLevel.ERROR, 'test error log');
+        DHM_SharedCode.OutputDebugLogText(LoggingLevel.DEBUG, 'test debug log');
+        DHM_SharedCode.OutputDebugLogText(LoggingLevel.ERROR, 'test error log');
 
         Test.stopTest();
 
@@ -87,13 +87,13 @@ public class MassMerge_SharedCode_TEST {
 
         System.assertEquals(
             true,
-            MassMerge_SharedCode_Object.ObjectsFieldMerge_Account_HandlePhone('Phone', accountPhoneDescribe),
+            DHM_SharedCode_Object.ObjectsFieldMerge_Account_HandlePhone('Phone', accountPhoneDescribe),
             'Account phone helper should recognize Phone.'
         );
 
         System.assertEquals(
             true,
-            MassMerge_SharedCode_Object.ObjectsFieldMerge_Contact_HandlePhone('MobilePhone', contactPhoneDescribe),
+            DHM_SharedCode_Object.ObjectsFieldMerge_Contact_HandlePhone('MobilePhone', contactPhoneDescribe),
             'Contact phone helper should recognize MobilePhone.'
         );
 
@@ -116,11 +116,11 @@ public class MassMerge_SharedCode_TEST {
         insert dupContact;
 
         Test.startTest();
-        MassMerge_SharedCode_Object.ObjectsMerge_Account(
+        DHM_SharedCode_Object.ObjectsMerge_Account(
             masterAccount,
             new List<Account>{ dupAccount }
         );
-        MassMerge_SharedCode_Object.ObjectsMerge_Contact(
+        DHM_SharedCode_Object.ObjectsMerge_Contact(
             masterContact,
             new List<Contact>{ dupContact }
         );
@@ -151,7 +151,7 @@ public class MassMerge_SharedCode_TEST {
     
         Test.startTest();
         try {
-            new MassMerge_SharedCode_Contact().ObjectsFieldMerge(
+            new DHM_SharedCode_Contact().ObjectsFieldMerge(
                 masterContact,
                 new List<Contact>{ duplicateContact }
             );
@@ -183,7 +183,7 @@ public class MassMerge_SharedCode_TEST {
         insert duplicateContact;
 
         Test.startTest();
-        new MassMerge_SharedCode_Contact().ObjectsMerge(
+        new DHM_SharedCode_Contact().ObjectsMerge(
             masterContact,
             new List<Contact>{ duplicateContact }
         );
@@ -238,7 +238,7 @@ public class MassMerge_SharedCode_TEST {
 
         Test.startTest();
         try {
-            new MassMerge_SharedCode_Account().ObjectsFieldMerge(
+            new DHM_SharedCode_Account().ObjectsFieldMerge(
                 masterAccount,
                 new List<Account>{ duplicateAccount }
             );
@@ -280,7 +280,7 @@ public class MassMerge_SharedCode_TEST {
         insert duplicateAccount;
 
         Test.startTest();
-        new MassMerge_SharedCode_Account().ObjectsMerge(
+        new DHM_SharedCode_Account().ObjectsMerge(
             masterAccount,
             new List<Account>{ duplicateAccount }
         );
@@ -325,7 +325,7 @@ public class MassMerge_SharedCode_TEST {
     
         System.assertEquals(
             true,
-            MassMerge_SharedCode_Object.ObjectsFieldMerge_Account_HandleEmail('Email', contactEmailDescribe),
+            DHM_SharedCode_Object.ObjectsFieldMerge_Account_HandleEmail('Email', contactEmailDescribe),
             'Account email helper should recognize an email field shape.'
         );
     
@@ -361,12 +361,12 @@ public class MassMerge_SharedCode_TEST {
     
         Test.startTest();
         try {
-            new MassMerge_SharedCode_Account().ObjectsFieldMerge(
+            new DHM_SharedCode_Account().ObjectsFieldMerge(
                 masterAccount,
                 new List<Account>{ dupAccount }
             );
     
-            new MassMerge_SharedCode_Contact().ObjectsFieldMerge(
+            new DHM_SharedCode_Contact().ObjectsFieldMerge(
                 masterContact,
                 new List<Contact>{ dupContact }
             );

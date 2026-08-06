@@ -1,5 +1,5 @@
 @IsTest
-private class MM_Flow_SingleContactMerge_TEST {
+private class DHM_SingleContactMerge_TEST {
 
     @IsTest
     static void testMatchFound() {
@@ -23,8 +23,8 @@ private class MM_Flow_SingleContactMerge_TEST {
         insert c2;
 
         Test.startTest();
-        MM_Flow_SingleContactMerge.Result result =
-            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+        DHM_SingleContactMerge.Result result =
+            DHM_SingleContactMergeService.evaluateAndMerge(
                 c2.Id,
                 false
             );
@@ -51,8 +51,8 @@ private class MM_Flow_SingleContactMerge_TEST {
         );
         insert c1;
 
-        MM_Flow_SingleContactMerge.Result result =
-            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+        DHM_SingleContactMerge.Result result =
+            DHM_SingleContactMergeService.evaluateAndMerge(
                 c1.Id,
                 false
             );
@@ -78,8 +78,8 @@ private class MM_Flow_SingleContactMerge_TEST {
         );
         insert c1;
 
-        MM_Flow_SingleContactMerge.Result result =
-            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+        DHM_SingleContactMerge.Result result =
+            DHM_SingleContactMergeService.evaluateAndMerge(
                 c1.Id,
                 false
             );
@@ -107,8 +107,8 @@ private class MM_Flow_SingleContactMerge_TEST {
             LIMIT 1
         ];
     
-        MM_Flow_SingleContactMerge.Result result =
-            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+        DHM_SingleContactMerge.Result result =
+            DHM_SingleContactMergeService.evaluateAndMerge(
                 queried.Id,
                 false
             );
@@ -161,8 +161,8 @@ private class MM_Flow_SingleContactMerge_TEST {
         );
         insert c2;
 
-        MM_Flow_SingleContactMerge.Result result =
-            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+        DHM_SingleContactMerge.Result result =
+            DHM_SingleContactMergeService.evaluateAndMerge(
                 c2.Id,
                 false,
                 'FirstName,LastName'
@@ -176,29 +176,29 @@ private class MM_Flow_SingleContactMerge_TEST {
 
     @IsTest
     static void testNormalizeAndHelpers() {
-        System.assertEquals('john', MM_Flow_SingleContactMergeService.normalizeName('  John  '));
-        System.assertEquals(null, MM_Flow_SingleContactMergeService.normalizeName('   '));
+        System.assertEquals('john', DHM_SingleContactMergeService.normalizeName('  John  '));
+        System.assertEquals(null, DHM_SingleContactMergeService.normalizeName('   '));
 
-        List<String> parsed = MM_Flow_SingleContactMergeService.parseMatchFields(' FirstName , LastName , Birthdate ');
+        List<String> parsed = DHM_SingleContactMergeService.parseMatchFields(' FirstName , LastName , Birthdate ');
         System.assertEquals(3, parsed.size());
         System.assertEquals('FirstName', parsed[0]);
         System.assertEquals('LastName', parsed[1]);
         System.assertEquals('Birthdate', parsed[2]);
 
-        List<String> parsedDefault = MM_Flow_SingleContactMergeService.parseMatchFields(null);
+        List<String> parsedDefault = DHM_SingleContactMergeService.parseMatchFields(null);
         System.assertEquals(3, parsedDefault.size());
         System.assertEquals('FirstName', parsedDefault[0]);
         System.assertEquals('LastName', parsedDefault[1]);
         System.assertEquals('Birthdate', parsedDefault[2]);
 
-        String key = MM_Flow_SingleContactMergeService.buildMatchKey(
+        String key = DHM_SingleContactMergeService.buildMatchKey(
             ' John ',
             ' Smith ',
             Date.newInstance(1980, 1, 1)
         );
         System.assertEquals('john|smith|1980-01-01', key);
 
-        String nullKey = MM_Flow_SingleContactMergeService.buildMatchKey(
+        String nullKey = DHM_SingleContactMergeService.buildMatchKey(
             'John',
             'Smith',
             null
@@ -228,11 +228,11 @@ private class MM_Flow_SingleContactMerge_TEST {
             LIMIT 1
         ];
 
-        String key = MM_Flow_SingleContactMergeService.buildMatchKeyFromRecord(queried, fields);
+        String key = DHM_SingleContactMergeService.buildMatchKeyFromRecord(queried, fields);
         System.assert(key.startsWith('amy|adams|'));
         System.assert(key.contains('1991-02-03'));
 
-        String selectFields = MM_Flow_SingleContactMergeService.buildContactSelectFields(fields);
+        String selectFields = DHM_SingleContactMergeService.buildContactSelectFields(fields);
         System.assert(selectFields.contains('Id'));
         System.assert(selectFields.contains('AccountId'));
         System.assert(selectFields.contains('CreatedDate'));
@@ -261,7 +261,7 @@ private class MM_Flow_SingleContactMerge_TEST {
             LIMIT 1
         ];
 
-        String clause = MM_Flow_SingleContactMergeService.buildContactEqualityWhereClause(
+        String clause = DHM_SingleContactMergeService.buildContactEqualityWhereClause(
             queried,
             new List<String>{ 'FirstName', 'LastName', 'Birthdate' }
         );
@@ -275,7 +275,7 @@ private class MM_Flow_SingleContactMerge_TEST {
     static void testFindMatchesWithinAccountNullAndNoAccount() {
         System.assertEquals(
             null,
-            MM_Flow_SingleContactMergeService.findMatchesWithinAccount((Contact)null)
+            DHM_SingleContactMergeService.findMatchesWithinAccount((Contact)null)
         );
 
         Contact c1 = new Contact(
@@ -294,7 +294,7 @@ private class MM_Flow_SingleContactMerge_TEST {
 
         System.assertEquals(
             null,
-            MM_Flow_SingleContactMergeService.findMatchesWithinAccount(
+            DHM_SingleContactMergeService.findMatchesWithinAccount(
                 queried,
                 new List<String>{ 'FirstName', 'LastName', 'Birthdate' }
             )
@@ -327,8 +327,8 @@ private class MM_Flow_SingleContactMerge_TEST {
             LIMIT 1
         ];
 
-        MM_Flow_SingleContactMergeService.MatchBundle bundle =
-            MM_Flow_SingleContactMergeService.findMatchesWithinAccount(
+        DHM_SingleContactMergeService.MatchBundle bundle =
+            DHM_SingleContactMergeService.findMatchesWithinAccount(
                 queried,
                 new List<String>{ 'FirstName', 'LastName', 'Birthdate' }
             );
@@ -342,14 +342,14 @@ private class MM_Flow_SingleContactMerge_TEST {
 
     @IsTest
     static void testMergeContactsNoOpAndDeletedSourceHandled() {
-        MM_Flow_SingleContactMergeService.mergeContacts(null);
+        DHM_SingleContactMergeService.mergeContacts(null);
     
-        MM_Flow_SingleContactMergeService.MatchBundle emptyBundle =
-            new MM_Flow_SingleContactMergeService.MatchBundle();
-        MM_Flow_SingleContactMergeService.mergeContacts(emptyBundle);
+        DHM_SingleContactMergeService.MatchBundle emptyBundle =
+            new DHM_SingleContactMergeService.MatchBundle();
+        DHM_SingleContactMergeService.mergeContacts(emptyBundle);
     
-        MM_Flow_SingleContactMerge.Result result =
-            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+        DHM_SingleContactMerge.Result result =
+            DHM_SingleContactMergeService.evaluateAndMerge(
                 null,
                 false
             );
@@ -381,8 +381,8 @@ private class MM_Flow_SingleContactMerge_TEST {
         insert newerContact;
 
         Test.startTest();
-        MM_Flow_SingleContactMerge.Result result =
-            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+        DHM_SingleContactMerge.Result result =
+            DHM_SingleContactMergeService.evaluateAndMerge(
                 newerContact.Id,
                 true
             );
@@ -415,8 +415,8 @@ private class MM_Flow_SingleContactMerge_TEST {
     static void testSourceContactDeletedReturnsMessage() {
         Id missingContactId = (Id)'003000000000000AAA';
 
-        MM_Flow_SingleContactMerge.Result result =
-            MM_Flow_SingleContactMergeService.evaluateAndMerge(
+        DHM_SingleContactMerge.Result result =
+            DHM_SingleContactMergeService.evaluateAndMerge(
                 missingContactId,
                 false
             );

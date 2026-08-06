@@ -1,9 +1,9 @@
-public without sharing class MassMerge_SharedCode_Account {
+public without sharing class DHM_SharedCode_Contact {
 
-    public class MassMerge_SharedCode_AccountException extends Exception {}
+    public class DHM_SharedCode_ContactException extends Exception {}
 
     private void BackfillBlankFields(
-        Account updateRecord,
+        Contact updateRecord,
         Set<String> blankFields,
         List<String> availableFieldValues
     ) {
@@ -19,9 +19,9 @@ public without sharing class MassMerge_SharedCode_Account {
                     availableFieldValues.remove(availableFieldValues.indexOf(availableFieldValue));
                     updateRecord.put(fieldName, availableFieldValue);
                 } catch (Exception e) {
-                    MassMerge_SharedCode.OutputDebugLogText(
+                    DHM_SharedCode.OutputDebugLogText(
                         LoggingLevel.ERROR,
-                        '***** MassMerge_SharedCode_Account::ObjectsFieldMerge_Account_BackfillFields Update Merge Field - fieldName: ' +
+                        '***** DHM_SharedCode_Object::ObjectsFieldMerge_Contact_BackfillFields Update Merge Field - fieldName: ' +
                         fieldName + ' Exception: ' + String.valueOf(e.getMessage())
                     );
                 }
@@ -52,14 +52,14 @@ public without sharing class MassMerge_SharedCode_Account {
         }
     }
 
-    public Account ObjectsFieldMerge(Account masterObject, List<Account> duplicateObjects) {
+    public Contact ObjectsFieldMerge(Contact masterObject, List<Contact> duplicateObjects) {
 
         Set<Id> mergeCandidates = new Set<Id>{ masterObject.Id };
-        for (Account objectItem : duplicateObjects) {
+        for (Contact objectItem : duplicateObjects) {
             mergeCandidates.add(objectItem.Id);
         }
 
-        Map<String, Schema.SObjectField> objectFields = Schema.SObjectType.Account.fields.getMap();
+        Map<String, Schema.SObjectField> objectFields = Schema.SObjectType.Contact.fields.getMap();
         Map<String, Schema.DescribeFieldResult> fieldMap = new Map<String, Schema.DescribeFieldResult>();
 
         String strSoql = 'SELECT ';
@@ -68,7 +68,7 @@ public without sharing class MassMerge_SharedCode_Account {
             Schema.SObjectField f = objectFields.get(fieldName);
             Schema.DescribeFieldResult fResult = f.getDescribe();
 
-            if (MassMerge_SharedCode.isSafeMergeField(fieldName, fResult)) {
+            if (DHM_SharedCode.isSafeMergeField(fieldName, fResult)) {
                 String relName = fResult.getRelationshipName();
                 if (String.isBlank(relName)) {
                     strSoql += (fieldName + ',');
@@ -80,30 +80,30 @@ public without sharing class MassMerge_SharedCode_Account {
             }
         }
 
-        strSoql += ' Id FROM Account WHERE Id IN ' + MassMerge_SharedCode.GetSafeSoqlList(mergeCandidates);
-        strSoql += ' LIMIT ' + String.valueOf(MassMerge_SharedCode.GetMaximumLimitSize(1));
+        strSoql += ' Id FROM Contact WHERE Id IN ' + DHM_SharedCode.GetSafeSoqlList(mergeCandidates);
+        strSoql += ' LIMIT ' + String.valueOf(DHM_SharedCode.GetMaximumLimitSize(1));
 
-        Account masterUpdateObject = new Account(
+        Contact masterUpdateObject = new Contact(
             Id = masterObject.Id
         );
 
-        Account masterUniqueObjectQuery = new Account(
+        Contact masterUniqueObjectQuery = new Contact(
             Id = masterObject.Id
         );
 
-        List<Account> objectList;
+        List<Contact> objectList;
         try {
             objectList = Database.query(strSoql);
 
             if (objectList == null || objectList.size() != mergeCandidates.size()) {
-                MassMerge_SharedCode.OutputDebugLogText(
+                DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.ERROR,
-                    '***** MassMerge_SharedCode_Account::ObjectsFieldMerge Query failed to return expected number of objects'
+                    '***** DHM_SharedCode_Contact::ObjectsFieldMerge Query failed to return expected number of objects'
                 );
                 return null;
             }
 
-            Account masterObjectQuery = null;
+            Contact masterObjectQuery = null;
             for (Integer objectIndex = 0; objectIndex < objectList.size(); objectIndex++) {
                 if (objectList[objectIndex].Id == masterObject.Id) {
                     masterObjectQuery = objectList[objectIndex];
@@ -112,14 +112,14 @@ public without sharing class MassMerge_SharedCode_Account {
             }
 
             if (masterObjectQuery == null) {
-                MassMerge_SharedCode.OutputDebugLogText(
+                DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.ERROR,
-                    '***** MassMerge_SharedCode_Account::ObjectsFieldMerge Query failed to find the master record fields'
+                    '***** DHM_SharedCode_Contact::ObjectsFieldMerge Query failed to find the master record fields'
                 );
                 return null;
             }
 
-            List<C501_Merge_Account_History__c> insertMergeHistories = new List<C501_Merge_Account_History__c>();
+            List<DHM_Merge_Contact_History__c> insertMergeHistories = new List<DHM_Merge_Contact_History__c>();
 
             Set<String> masterUsedEmailValues = new Set<String>();
             Set<String> masterBlankEmailFields = new Set<String>();
@@ -129,13 +129,13 @@ public without sharing class MassMerge_SharedCode_Account {
             List<String> availablePhoneValues = new List<String>();
             Set<String> addressTypesSkip = new Set<String>();
 
-            for (Account objectItem : objectList) {
+            for (Contact objectItem : objectList) {
                 if (masterObjectQuery.Id == objectItem.get('Id')) {
-                    for (String addressType : MassMerge_SharedCode_Object.AddressTypesAvailable) {
-                        for (String addressField : MassMerge_SharedCode_Object.AddressFieldsAvailable) {
-                            MassMerge_SharedCode.OutputDebugLogText(
+                    for (String addressType : DHM_SharedCode_Object.AddressTypesAvailable) {
+                        for (String addressField : DHM_SharedCode_Object.AddressFieldsAvailable) {
+                            DHM_SharedCode.OutputDebugLogText(
                                 LoggingLevel.DEBUG,
-                                '***** MassMerge_SharedCode_Account::ObjectsFieldMerge - check address field: ' +
+                                '***** DHM_SharedCode_Contact::ObjectsFieldMerge - check address field: ' +
                                 addressType + addressField
                             );
 
@@ -143,9 +143,9 @@ public without sharing class MassMerge_SharedCode_Account {
                                 if (masterObjectQuery.get(addressType + addressField) != null &&
                                     !String.isBlank(String.valueOf(masterObjectQuery.get(addressType + addressField)))) {
 
-                                    MassMerge_SharedCode.OutputDebugLogText(
+                                    DHM_SharedCode.OutputDebugLogText(
                                         LoggingLevel.DEBUG,
-                                        '***** MassMerge_SharedCode_Account::ObjectsFieldMerge - skip address field: ' +
+                                        '***** DHM_SharedCode_Contact::ObjectsFieldMerge - skip address field: ' +
                                         addressType + addressField
                                     );
 
@@ -154,9 +154,9 @@ public without sharing class MassMerge_SharedCode_Account {
                                 }
                             } catch (Exception e) {
                                 if (!e.getMessage().contains('Invalid field')) {
-                                    MassMerge_SharedCode.OutputDebugLogText(
+                                    DHM_SharedCode.OutputDebugLogText(
                                         LoggingLevel.ERROR,
-                                        '***** MassMerge_SharedCode_Account::ObjectsFieldMerge check address field exception: ' +
+                                        '***** DHM_SharedCode_Contact::ObjectsFieldMerge check address field exception: ' +
                                         String.valueOf(e.getMessage())
                                     );
                                 }
@@ -168,16 +168,16 @@ public without sharing class MassMerge_SharedCode_Account {
                 }
             }
 
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** MassMerge_SharedCode_Account::ObjectsFieldMerge - addressTypesSkip: ' + addressTypesSkip
+                '***** DHM_SharedCode_Contact::ObjectsFieldMerge - addressTypesSkip: ' + addressTypesSkip
             );
 
-            Mass_Merge_Config__c massMergeConfigSettings = Mass_Merge_Config__c.getOrgDefaults();
+            DHM_Settings__c massMergeConfigSettings = DHM_Settings__c.getOrgDefaults();
             Boolean writeAllMergeHistoryFields =
                 massMergeConfigSettings == null ? false : massMergeConfigSettings.Merge_History_Write_All__c;
 
-            for (Account objectItem : objectList) {
+            for (Contact objectItem : objectList) {
 
                 if (masterObjectQuery.Id == objectItem.get('Id')) {
                     continue;
@@ -187,8 +187,8 @@ public without sharing class MassMerge_SharedCode_Account {
                 String mergeActionUse = 'Use Duplicate';
                 String mergeActionError = 'Error';
 
-                insertMergeHistories.add(new C501_Merge_Account_History__c(
-                    Account__c = masterObjectQuery.Id,
+                insertMergeHistories.add(new DHM_Merge_Contact_History__c(
+                    Contact__c = masterObjectQuery.Id,
                     Merge_Value__c = masterObjectQuery.Id,
                     Ignore_Value__c = String.valueOf(objectItem.get('Id')),
                     Field__c = 'Id',
@@ -202,14 +202,14 @@ public without sharing class MassMerge_SharedCode_Account {
                     String masterFieldValue = String.valueOf(masterObjectQuery.get(fieldName));
                     String duplicateFieldValue = String.valueOf(objectItem.get(fieldName));
 
-                    MassMerge_SharedCode.OutputDebugLogText(
+                    DHM_SharedCode.OutputDebugLogText(
                         LoggingLevel.DEBUG,
-                        '***** MassMerge_SharedCode_Account::ObjectsFieldMerge - fieldName: ' +
+                        '***** DHM_SharedCode_Contact::ObjectsFieldMerge - fieldName: ' +
                         fieldName + ' masterFieldValue: ' + masterFieldValue +
                         ' duplicateFieldValue: ' + duplicateFieldValue
                     );
 
-                    if (MassMerge_SharedCode_Object.ObjectsFieldMerge_Account_HandlePhone(fieldName, fieldMap.get(fieldName))) {
+                    if (DHM_SharedCode_Object.ObjectsFieldMerge_Contact_HandlePhone(fieldName, fieldMap.get(fieldName))) {
                         this.BackfillCheckFields(
                             fieldName,
                             masterFieldValue,
@@ -220,7 +220,7 @@ public without sharing class MassMerge_SharedCode_Account {
                         );
                     }
 
-                    if (MassMerge_SharedCode_Object.ObjectsFieldMerge_Account_HandleEmail(fieldName, fieldMap.get(fieldName))) {
+                    if (DHM_SharedCode_Object.ObjectsFieldMerge_Contact_HandleEmail(fieldName, fieldMap.get(fieldName))) {
                         this.BackfillCheckFields(
                             fieldName,
                             masterFieldValue,
@@ -232,11 +232,11 @@ public without sharing class MassMerge_SharedCode_Account {
                     }
 
                     for (String addressType : addressTypesSkip) {
-                        for (String addressField : MassMerge_SharedCode.AddressFieldsAvailable) {
+                        for (String addressField : DHM_SharedCode.AddressFieldsAvailable) {
                             if (fieldName.equalsIgnoreCase(addressType + addressField)) {
-                                MassMerge_SharedCode.OutputDebugLogText(
+                                DHM_SharedCode.OutputDebugLogText(
                                     LoggingLevel.DEBUG,
-                                    '***** MassMerge_SharedCode_Account::ObjectsFieldMerge - skip address field: ' +
+                                    '***** DHM_SharedCode_Contact::ObjectsFieldMerge - skip address field: ' +
                                     fieldName
                                 );
                                 skipMasterFieldUpdate = true;
@@ -263,9 +263,9 @@ public without sharing class MassMerge_SharedCode_Account {
                                 mergeAction = mergeActionUse;
 
                             } catch (Exception e) {
-                                MassMerge_SharedCode.OutputDebugLogText(
+                                DHM_SharedCode.OutputDebugLogText(
                                     LoggingLevel.ERROR,
-                                    '***** MassMerge_SharedCode_Account::ObjectsFieldMerge Update Merge Standard Field - fieldName: ' +
+                                    '***** DHM_SharedCode_Contact::ObjectsFieldMerge Update Merge Standard Field - fieldName: ' +
                                     fieldName + ' Exception: ' + String.valueOf(e.getMessage())
                                 );
                                 mergeAction = mergeActionError;
@@ -279,8 +279,8 @@ public without sharing class MassMerge_SharedCode_Account {
                     }
 
                     if (writeHistoryRecord) {
-                        insertMergeHistories.add(new C501_Merge_Account_History__c(
-                            Account__c = masterObjectQuery.Id,
+                        insertMergeHistories.add(new DHM_Merge_Contact_History__c(
+                            Contact__c = masterObjectQuery.Id,
                             Merge_Value__c = String.isBlank(masterFieldValue) ? '(blank)' : masterFieldValue,
                             Ignore_Value__c = String.isBlank(duplicateFieldValue) ? '(blank)' : duplicateFieldValue,
                             Field__c = fieldName,
@@ -301,15 +301,15 @@ public without sharing class MassMerge_SharedCode_Account {
                 if (!updateResult.isSuccess()) {
 
                     for (Database.Error resultError : updateResult.getErrors()) {
-                        MassMerge_SharedCode.LogDatabaseError(
+                        DHM_SharedCode.LogDatabaseError(
                             resultError,
                             String.valueOf(this).substring(0, String.valueOf(this).indexOf(':')) + '::ObjectsFieldMerge'
                         );
                     }
 
-                    MassMerge_SharedCode.OutputDebugLogText(
+                    DHM_SharedCode.OutputDebugLogText(
                         LoggingLevel.ERROR,
-                        '***** MassMerge_SharedCode_Account::ObjectsFieldMerge - Database.update: ' + updateResult
+                        '***** DHM_SharedCode_Contact::ObjectsFieldMerge - Database.update: ' + updateResult
                     );
                     return null;
                 }
@@ -320,7 +320,7 @@ public without sharing class MassMerge_SharedCode_Account {
                 for (Database.SaveResult insertResult : insertResults) {
                     if (!insertResult.isSuccess()) {
                         for (Database.Error resultError : insertResult.getErrors()) {
-                            MassMerge_SharedCode.LogDatabaseError(
+                            DHM_SharedCode.LogDatabaseError(
                                 resultError,
                                 String.valueOf(this).substring(0, String.valueOf(this).indexOf(':')) + '::ObjectsFieldMerge'
                             );
@@ -329,9 +329,9 @@ public without sharing class MassMerge_SharedCode_Account {
                 }
             }
         } catch (Exception e) {
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.ERROR,
-                '***** MassMerge_SharedCode_Account::ObjectsFieldMerge Update fields exception: ' +
+                '***** DHM_SharedCode_Contact::ObjectsFieldMerge Update fields exception: ' +
                 String.valueOf(e.getMessage())
             );
             return null;
@@ -340,29 +340,29 @@ public without sharing class MassMerge_SharedCode_Account {
         return masterUniqueObjectQuery;
     }
 
-    public void ObjectsMerge(Account masterObject, List<Account> duplicateObjects) {
+    public void ObjectsMerge(Contact masterObject, List<Contact> duplicateObjects) {
 
         if (masterObject == null || duplicateObjects == null || duplicateObjects.isEmpty()) {
             return;
         }
 
-        MassMerge_SharedCode_Object.ObjectsMerge_Account(masterObject, duplicateObjects);
+        DHM_SharedCode_Object.ObjectsMerge_Contact(masterObject, duplicateObjects);
 
-        Account masterObjectUniqueValues = ObjectsFieldMerge(masterObject, duplicateObjects);
+        Contact masterObjectUniqueValues = ObjectsFieldMerge(masterObject, duplicateObjects);
         if (masterObjectUniqueValues != null) {
 
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** MassMerge_SharedCode_Account::ObjectsMerge Account Merge Master: ' +
+                '***** DHM_SharedCode_Contact::ObjectsMerge Contact Merge Master: ' +
                 masterObject.Id + ' Duplicate: ' + duplicateObjects[0].Id
             );
 
-            Account mergeMaster = new Account(Id = masterObject.Id);
-            List<Account> mergeDuplicates = new List<Account>();
+            Contact mergeMaster = new Contact(Id = masterObject.Id);
+            List<Contact> mergeDuplicates = new List<Contact>();
 
-            for (Account duplicateObject : duplicateObjects) {
+            for (Contact duplicateObject : duplicateObjects) {
                 if (duplicateObject != null && duplicateObject.Id != null) {
-                    mergeDuplicates.add(new Account(Id = duplicateObject.Id));
+                    mergeDuplicates.add(new Contact(Id = duplicateObject.Id));
                 }
             }
 
@@ -372,15 +372,15 @@ public without sharing class MassMerge_SharedCode_Account {
                 for (Database.MergeResult res : objectResults) {
                     if (!res.isSuccess()) {
                         for (Database.Error err : res.getErrors()) {
-                            MassMerge_SharedCode.OutputDebugLogText(
+                            DHM_SharedCode.OutputDebugLogText(
                                 LoggingLevel.ERROR,
-                                '***** MassMerge_SharedCode_Account::ObjectsMerge Account Merge Exception: ' +
+                                '***** DHM_SharedCode_Contact::ObjectsMerge Contact Merge Exception: ' +
                                 err.getMessage()
                             );
                         }
 
-                        throw new MassMerge_SharedCode_AccountException(
-                            'Account Merge Attempt - ' + String.valueOf(res.getErrors())
+                        throw new DHM_SharedCode_ContactException(
+                            'Contact Merge Attempt - ' + String.valueOf(res.getErrors())
                         );
                     }
                 }
@@ -390,15 +390,15 @@ public without sharing class MassMerge_SharedCode_Account {
             if (!updateResult.isSuccess()) {
 
                 for (Database.Error resultError : updateResult.getErrors()) {
-                    MassMerge_SharedCode.LogDatabaseError(
+                    DHM_SharedCode.LogDatabaseError(
                         resultError,
                         String.valueOf(this).substring(0, String.valueOf(this).indexOf(':')) + '::ObjectsMerge Unique Values'
                     );
                 }
 
-                MassMerge_SharedCode.OutputDebugLogText(
+                DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.ERROR,
-                    '***** MassMerge_SharedCode_Account::ObjectsMerge Unique Values - Database.update: ' + updateResult
+                    '***** DHM_SharedCode_Contact::ObjectsMerge Unique Values - Database.update: ' + updateResult
                 );
             }
         }

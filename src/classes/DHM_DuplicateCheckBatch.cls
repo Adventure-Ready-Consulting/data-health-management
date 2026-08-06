@@ -1,7 +1,7 @@
 /*
 Run From Debug Console
 
-Id jobId = MM_Flow_DuplicateCheckBatch.startBatch(
+Id jobId = DHM_DuplicateCheckBatch.startBatch(
     'Account',
     false,
     'FirstName,LastName,Birthdate'
@@ -9,7 +9,7 @@ Id jobId = MM_Flow_DuplicateCheckBatch.startBatch(
 System.debug('Batch Job Id = ' + jobId);
 */
 
-public without sharing class MM_Flow_DuplicateCheckBatch
+public without sharing class DHM_DuplicateCheckBatch
     implements Database.Batchable<SObject>, Database.Stateful {
 
     public static final Integer REQUIRED_BATCH_SIZE = 1;
@@ -26,7 +26,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
     private Integer candidateSetCount = 0;
     private Integer errorCount = 0;
 
-    public MM_Flow_DuplicateCheckBatch(
+    public DHM_DuplicateCheckBatch(
         String objectType,
         Boolean performMerge,
         String matchFieldsCsv
@@ -34,7 +34,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
         this(objectType, performMerge, matchFieldsCsv, null);
     }
 
-    public MM_Flow_DuplicateCheckBatch(
+    public DHM_DuplicateCheckBatch(
         String objectType,
         Boolean performMerge,
         String matchFieldsCsv,
@@ -45,9 +45,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
         this.matchFieldsCsv = matchFieldsCsv;
         this.contactExclusionCriteria = contactExclusionCriteria;
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MM_Flow_DuplicateCheckBatch::Constructor objectType=' + objectType +
+            '***** DHM_DuplicateCheckBatch::Constructor objectType=' + objectType +
             ', performMerge=' + String.valueOf(this.performMerge) +
             ', matchFieldsCsv=' + matchFieldsCsv +
                 ', contactExclusionCriteria=' + this.contactExclusionCriteria
@@ -70,9 +70,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
     ) {
         Integer batchSizeToUse = Test.isRunningTest() ? 200 : REQUIRED_BATCH_SIZE;
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MM_Flow_DuplicateCheckBatch::startBatch objectType=' + objectType +
+            '***** DHM_DuplicateCheckBatch::startBatch objectType=' + objectType +
             ', performMerge=' + String.valueOf(performMerge == null ? false : performMerge) +
             ', matchFieldsCsv=' + matchFieldsCsv +
                 ', contactExclusionCriteria=' + contactExclusionCriteria +
@@ -80,7 +80,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
         );
 
         return Database.executeBatch(
-            new MM_Flow_DuplicateCheckBatch(
+            new DHM_DuplicateCheckBatch(
                 objectType,
                 performMerge,
                 matchFieldsCsv,
@@ -107,9 +107,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             soql = 'SELECT Id FROM Account WHERE Id = null';
         }
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MM_Flow_DuplicateCheckBatch::start jobId=' + bc.getJobId() +
+            '***** DHM_DuplicateCheckBatch::start jobId=' + bc.getJobId() +
             ', objectType=' + objectType +
             ', soql=' + soql
         );
@@ -121,18 +121,18 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
         Integer actualScopeSize = (scope == null ? 0 : scope.size());
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MM_Flow_DuplicateCheckBatch::execute ENTER jobId=' +
+            '***** DHM_DuplicateCheckBatch::execute ENTER jobId=' +
             bc.getJobId() +
             ', scopeSize=' + (scope == null ? 'null' : String.valueOf(scope.size())) +
             ', objectType=' + objectType
         );
 
         if (scope == null || scope.isEmpty()) {
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** MM_Flow_DuplicateCheckBatch::execute scope is NULL/EMPTY - exiting'
+                '***** DHM_DuplicateCheckBatch::execute scope is NULL/EMPTY - exiting'
             );
             return;
         }
@@ -142,15 +142,15 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             actualScopeSize != REQUIRED_BATCH_SIZE) {
 
             String msg =
-                'MM_Flow_DuplicateCheckBatch must be launched with batch size ' +
+                'DHM_DuplicateCheckBatch must be launched with batch size ' +
                 String.valueOf(REQUIRED_BATCH_SIZE) +
                 ' for objectType=' + objectType +
                 '. Actual scopeSize=' + String.valueOf(actualScopeSize) +
-                '. Use MM_Flow_DuplicateCheckBatch.startBatch(...) or the launcher class.';
+                '. Use DHM_DuplicateCheckBatch.startBatch(...) or the launcher class.';
 
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.ERROR,
-                '***** MM_Flow_DuplicateCheckBatch::execute INVALID_SCOPE ' + msg
+                '***** DHM_DuplicateCheckBatch::execute INVALID_SCOPE ' + msg
             );
 
             throw new BatchScopeException(msg);
@@ -158,33 +158,33 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
         if (objectType == 'Contact') {
 
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** MM_Flow_DuplicateCheckBatch::execute routing Contact'
+                '***** DHM_DuplicateCheckBatch::execute routing Contact'
             );
 
             processContacts(scope);
 
         } else if (objectType == 'Account') {
 
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** MM_Flow_DuplicateCheckBatch::execute routing Account'
+                '***** DHM_DuplicateCheckBatch::execute routing Account'
             );
 
             processAccounts(scope);
 
         } else {
 
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** MM_Flow_DuplicateCheckBatch::execute unsupported objectType=' + objectType
+                '***** DHM_DuplicateCheckBatch::execute unsupported objectType=' + objectType
             );
         }
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MM_Flow_DuplicateCheckBatch::execute EXIT jobId=' + bc.getJobId()
+            '***** DHM_DuplicateCheckBatch::execute EXIT jobId=' + bc.getJobId()
         );
     }
 
@@ -221,9 +221,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             processedCount++;
 
             if (con == null) {
-                MassMerge_SharedCode.OutputDebugLogText(
+                DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
-                    '***** MM_Flow_DuplicateCheckBatch::processContacts missing queried Contact for Id=' +
+                    '***** DHM_DuplicateCheckBatch::processContacts missing queried Contact for Id=' +
                     String.valueOf(contactId) +
                     ' - clearing Duplicate_Check__c'
                 );
@@ -232,23 +232,23 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     Id = contactId,
                     Duplicate_Check__c = false
                 );
-                MassMerge_SharedCode.ClearDuplicateCheckError(updateCon);
+                DHM_SharedCode.ClearDuplicateCheckError(updateCon);
                 updates.add(updateCon);
                 continue;
             }
 
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** MM_Flow_DuplicateCheckBatch::processContacts evaluating Contact Id=' +
+                '***** DHM_DuplicateCheckBatch::processContacts evaluating Contact Id=' +
                 String.valueOf(con.Id) +
                 ', existing Duplicate_Check_Candidate__c=' +
                 String.valueOf(con.Duplicate_Check_Candidate__c)
             );
 
             if (!recordHasRequiredMatchFields(con, matchFields)) {
-                MassMerge_SharedCode.OutputDebugLogText(
+                DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
-                    '***** MM_Flow_DuplicateCheckBatch::processContacts skipping Contact Id=' +
+                    '***** DHM_DuplicateCheckBatch::processContacts skipping Contact Id=' +
                     String.valueOf(con.Id) +
                     ' due to missing required match fields; clearing Duplicate_Check__c'
                 );
@@ -257,7 +257,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     Id = con.Id,
                     Duplicate_Check__c = false
                 );
-                MassMerge_SharedCode.ClearDuplicateCheckError(updateCon);
+                DHM_SharedCode.ClearDuplicateCheckError(updateCon);
                 updates.add(updateCon);
                 continue;
             }
@@ -268,14 +268,14 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             );
 
             try {
-                MM_Flow_SingleContactMerge.Result res =
-                    MM_Flow_SingleContactMergeService.evaluateAndMerge(
+                DHM_SingleContactMerge.Result res =
+                    DHM_SingleContactMergeService.evaluateAndMerge(
                         con.Id,
                         performMerge,
                         matchFieldsCsv
                     );
 
-                MassMerge_SharedCode.ClearDuplicateCheckError(updateCon);
+                DHM_SharedCode.ClearDuplicateCheckError(updateCon);
 
                 if (res != null &&
                     res.candidateFound &&
@@ -294,9 +294,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                         updateCon.Duplicate_Check_Candidate__c = candidateId;
                         candidateSetCount++;
 
-                        MassMerge_SharedCode.OutputDebugLogText(
+                        DHM_SharedCode.OutputDebugLogText(
                             LoggingLevel.DEBUG,
-                            '***** MM_Flow_DuplicateCheckBatch::processContacts setting Duplicate_Check_Candidate__c for Contact Id=' +
+                            '***** DHM_DuplicateCheckBatch::processContacts setting Duplicate_Check_Candidate__c for Contact Id=' +
                             String.valueOf(con.Id) +
                             ' to candidateId=' + String.valueOf(candidateId)
                         );
@@ -304,9 +304,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                 }
             } catch (Exception e) {
                 errorCount++;
-                MassMerge_SharedCode.LogAndSetError(
+                DHM_SharedCode.LogAndSetError(
                     updateCon,
-                    '***** MM_Flow_DuplicateCheckBatch::processContacts Contact Id=' +
+                    '***** DHM_DuplicateCheckBatch::processContacts Contact Id=' +
                     String.valueOf(con.Id) +
                     ' Exception: ' + String.valueOf(e.getMessage())
                 );
@@ -331,9 +331,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             } else {
                 errorCount++;
                 for (Database.Error err : saveResults[i].getErrors()) {
-                    MassMerge_SharedCode.OutputDebugLogText(
+                    DHM_SharedCode.OutputDebugLogText(
                         LoggingLevel.DEBUG,
-                        '***** MM_Flow_DuplicateCheckBatch::saveContactUpdates error Contact Id=' +
+                        '***** DHM_DuplicateCheckBatch::saveContactUpdates error Contact Id=' +
                         String.valueOf(updates[i].Id) +
                         ', statusCode=' + String.valueOf(err.getStatusCode()) +
                         ', message=' + err.getMessage()
@@ -342,9 +342,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             }
         }
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MM_Flow_DuplicateCheckBatch::saveContactUpdates complete updatedCount=' +
+            '***** DHM_DuplicateCheckBatch::saveContactUpdates complete updatedCount=' +
             String.valueOf(updatedCount) +
             ', errorCount=' + String.valueOf(errorCount)
         );
@@ -393,9 +393,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             processedCount++;
 
             if (acc == null) {
-                MassMerge_SharedCode.OutputDebugLogText(
+                DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
-                    '***** MM_Flow_DuplicateCheckBatch::processAccounts missing queried Account for Id=' +
+                    '***** DHM_DuplicateCheckBatch::processAccounts missing queried Account for Id=' +
                     String.valueOf(accountId) +
                     ' - clearing Duplicate_Check__c'
                 );
@@ -404,14 +404,14 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     Id = accountId,
                     Duplicate_Check__c = false
                 );
-                MassMerge_SharedCode.ClearDuplicateCheckError(updateAcc);
+                DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
                 updates.add(updateAcc);
                 continue;
             }
 
-            MassMerge_SharedCode.OutputDebugLogText(
+            DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** MM_Flow_DuplicateCheckBatch::processAccounts evaluating Account Id=' +
+                '***** DHM_DuplicateCheckBatch::processAccounts evaluating Account Id=' +
                 String.valueOf(acc.Id) +
                 ', existing Duplicate_Check_Candidate__c=' +
                 String.valueOf(acc.Duplicate_Check_Candidate__c)
@@ -419,9 +419,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
 
             List<Contact> accountContacts = contactsByAccountId.get(acc.Id);
             if (!accountHasAnyMatchableContact(accountContacts, matchFields)) {
-                MassMerge_SharedCode.OutputDebugLogText(
+                DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
-                    '***** MM_Flow_DuplicateCheckBatch::processAccounts skipping Account Id=' +
+                    '***** DHM_DuplicateCheckBatch::processAccounts skipping Account Id=' +
                     String.valueOf(acc.Id) +
                     ' due to no related Contacts with all required match fields populated; clearing Duplicate_Check__c'
                 );
@@ -430,7 +430,7 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                     Id = acc.Id,
                     Duplicate_Check__c = false
                 );
-                MassMerge_SharedCode.ClearDuplicateCheckError(updateAcc);
+                DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
                 updates.add(updateAcc);
                 continue;
             }
@@ -441,15 +441,15 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             );
 
             try {
-                MM_Flow_SingleAccountMerge.Result res =
-                    MM_Flow_SingleAccountMergeService.evaluateAndMerge(
+                DHM_SingleAccountMerge.Result res =
+                    DHM_SingleAccountMergeService.evaluateAndMerge(
                         acc.Id,
                         performMerge,
                         matchFieldsCsv,
                         contactExclusionCriteria
                     );
 
-                MassMerge_SharedCode.ClearDuplicateCheckError(updateAcc);
+                DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
 
                 if (res != null &&
                     res.candidateFound &&
@@ -468,9 +468,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                         updateAcc.Duplicate_Check_Candidate__c = candidateId;
                         candidateSetCount++;
 
-                        MassMerge_SharedCode.OutputDebugLogText(
+                        DHM_SharedCode.OutputDebugLogText(
                             LoggingLevel.DEBUG,
-                            '***** MM_Flow_DuplicateCheckBatch::processAccounts setting Duplicate_Check_Candidate__c for Account Id=' +
+                            '***** DHM_DuplicateCheckBatch::processAccounts setting Duplicate_Check_Candidate__c for Account Id=' +
                             String.valueOf(acc.Id) +
                             ' to candidateId=' + String.valueOf(candidateId)
                         );
@@ -478,9 +478,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
                 }
             } catch (Exception e) {
                 errorCount++;
-                MassMerge_SharedCode.LogAndSetError(
+                DHM_SharedCode.LogAndSetError(
                     updateAcc,
-                    '***** MM_Flow_DuplicateCheckBatch::processAccounts Account Id=' +
+                    '***** DHM_DuplicateCheckBatch::processAccounts Account Id=' +
                     String.valueOf(acc.Id) +
                     ' Exception: ' + String.valueOf(e.getMessage())
                 );
@@ -505,9 +505,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             } else {
                 errorCount++;
                 for (Database.Error err : saveResults[i].getErrors()) {
-                    MassMerge_SharedCode.OutputDebugLogText(
+                    DHM_SharedCode.OutputDebugLogText(
                         LoggingLevel.DEBUG,
-                        '***** MM_Flow_DuplicateCheckBatch::saveAccountUpdates error Account Id=' +
+                        '***** DHM_DuplicateCheckBatch::saveAccountUpdates error Account Id=' +
                         String.valueOf(updates[i].Id) +
                         ', statusCode=' + String.valueOf(err.getStatusCode()) +
                         ', message=' + err.getMessage()
@@ -516,9 +516,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
             }
         }
 
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MM_Flow_DuplicateCheckBatch::saveAccountUpdates complete updatedCount=' +
+            '***** DHM_DuplicateCheckBatch::saveAccountUpdates complete updatedCount=' +
             String.valueOf(updatedCount) +
             ', errorCount=' + String.valueOf(errorCount)
         );
@@ -592,9 +592,9 @@ public without sharing class MM_Flow_DuplicateCheckBatch
     }
 
     public void finish(Database.BatchableContext bc) {
-        MassMerge_SharedCode.OutputDebugLogText(
+        DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
-            '***** MM_Flow_DuplicateCheckBatch::finish jobId=' + bc.getJobId() +
+            '***** DHM_DuplicateCheckBatch::finish jobId=' + bc.getJobId() +
             ', objectType=' + objectType +
             ', processedCount=' + String.valueOf(processedCount) +
             ', updatedCount=' + String.valueOf(updatedCount) +
