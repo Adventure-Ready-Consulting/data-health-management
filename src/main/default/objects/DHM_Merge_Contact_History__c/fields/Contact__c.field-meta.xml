@@ -6,7 +6,7 @@
     <label>Contact</label>
     <referenceTo>Contact</referenceTo>
     <relationshipLabel>Merge Contact Histories</relationshipLabel>
-    <relationshipName>Merge_Contact_Histories</relationshipName>
+    <relationshipName>DHM_Merge_Contact_Histories</relationshipName>
     <required>true</required>
     <trackTrending>false</trackTrending>
     <type>Lookup</type>
