@@ -10,8 +10,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             AccountId = acct.Id,
             FirstName = 'Mary',
             LastName = 'Jones',
-            Birthdate = Date.newInstance(1990, 5, 15),
-            Duplicate_Check__c = false
+            Birthdate = Date.newInstance(1990, 5, 15)
         );
         insert masterCon;
 
@@ -19,8 +18,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             AccountId = acct.Id,
             FirstName = 'Mary',
             LastName = 'Jones',
-            Birthdate = Date.newInstance(1990, 5, 15),
-            Duplicate_Check__c = true
+            Birthdate = Date.newInstance(1990, 5, 15)
         );
         insert flaggedCon;
 
@@ -33,13 +31,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         Test.stopTest();
 
         Contact refreshed = [
-            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c
+            SELECT Id, Duplicate_Check_Candidate__c
             FROM Contact
             WHERE Id = :flaggedCon.Id
             LIMIT 1
         ];
-
-        System.assertEquals(false, refreshed.Duplicate_Check__c);
         System.assertEquals(masterCon.Id, refreshed.Duplicate_Check_Candidate__c);
     }
 
@@ -60,8 +56,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             AccountId = acct.Id,
             FirstName = 'Mary',
             LastName = 'Jones',
-            Birthdate = Date.newInstance(1990, 5, 15),
-            Duplicate_Check__c = false
+            Birthdate = Date.newInstance(1990, 5, 15)
         );
         insert masterCon;
 
@@ -70,7 +65,6 @@ private class DHM_DuplicateCheckBatch_TEST {
             FirstName = 'Mary',
             LastName = 'Jones',
             Birthdate = Date.newInstance(1990, 5, 15),
-            Duplicate_Check__c = true,
             Duplicate_Check_Candidate__c = existingCandidate.Id
         );
         insert flaggedCon;
@@ -84,13 +78,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         Test.stopTest();
 
         Contact refreshed = [
-            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c
+            SELECT Id, Duplicate_Check_Candidate__c
             FROM Contact
             WHERE Id = :flaggedCon.Id
             LIMIT 1
         ];
-
-        System.assertEquals(false, refreshed.Duplicate_Check__c);
         System.assertEquals(masterCon.Id, refreshed.Duplicate_Check_Candidate__c);
     }
 
@@ -103,8 +95,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             AccountId = acct.Id,
             FirstName = 'Alice',
             LastName = 'Brown',
-            Birthdate = Date.newInstance(1988, 3, 10),
-            Duplicate_Check__c = true
+            Birthdate = Date.newInstance(1988, 3, 10)
         );
         insert flaggedCon;
 
@@ -117,13 +108,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         Test.stopTest();
 
         Contact refreshed = [
-            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c
+            SELECT Id, Duplicate_Check_Candidate__c
             FROM Contact
             WHERE Id = :flaggedCon.Id
             LIMIT 1
         ];
-
-        System.assertEquals(false, refreshed.Duplicate_Check__c);
         System.assertEquals(null, refreshed.Duplicate_Check_Candidate__c);
     }
 
@@ -136,8 +125,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             AccountId = acct.Id,
             FirstName = 'Skip',
             LastName = 'Me',
-            Birthdate = null,
-            Duplicate_Check__c = true
+            Birthdate = null
         );
         insert flaggedCon;
 
@@ -150,26 +138,23 @@ private class DHM_DuplicateCheckBatch_TEST {
         Test.stopTest();
 
         Contact refreshed = [
-            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c, Birthdate
+            SELECT Id, Duplicate_Check_Candidate__c, Birthdate
             FROM Contact
             WHERE Id = :flaggedCon.Id
             LIMIT 1
         ];
 
         System.assertEquals(null, refreshed.Birthdate);
-        System.assertEquals(false, refreshed.Duplicate_Check__c);
         System.assertEquals(null, refreshed.Duplicate_Check_Candidate__c);
     }
 
     @IsTest
     static void testBatchAccountCandidateFound() {
         Account sourceAcct = new Account(
-            Name = 'Batch Source Household',
-            Duplicate_Check__c = true
+            Name = 'Batch Source Household'
         );
         Account targetAcct = new Account(
-            Name = 'Batch Target Household',
-            Duplicate_Check__c = false
+            Name = 'Batch Target Household'
         );
         insert new List<Account>{ sourceAcct, targetAcct };
 
@@ -209,21 +194,18 @@ private class DHM_DuplicateCheckBatch_TEST {
         Test.stopTest();
 
         Account refreshed = [
-            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c
+            SELECT Id, Duplicate_Check_Candidate__c
             FROM Account
             WHERE Id = :sourceAcct.Id
             LIMIT 1
         ];
-
-        System.assertEquals(false, refreshed.Duplicate_Check__c);
         System.assertEquals(targetAcct.Id, refreshed.Duplicate_Check_Candidate__c);
     }
 
     @IsTest
     static void testBatchAccountNoCandidate() {
         Account sourceAcct = new Account(
-            Name = 'Batch Source Only',
-            Duplicate_Check__c = true
+            Name = 'Batch Source Only'
         );
         insert sourceAcct;
 
@@ -243,21 +225,18 @@ private class DHM_DuplicateCheckBatch_TEST {
         Test.stopTest();
 
         Account refreshed = [
-            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c
+            SELECT Id, Duplicate_Check_Candidate__c
             FROM Account
             WHERE Id = :sourceAcct.Id
             LIMIT 1
         ];
-
-        System.assertEquals(false, refreshed.Duplicate_Check__c);
         System.assertEquals(null, refreshed.Duplicate_Check_Candidate__c);
     }
 
     @IsTest
     static void testBatchAccountSkipsWhenNoMatchableContacts() {
         Account sourceAcct = new Account(
-            Name = 'Batch Source Unmatchable',
-            Duplicate_Check__c = true
+            Name = 'Batch Source Unmatchable'
         );
         insert sourceAcct;
 
@@ -277,21 +256,18 @@ private class DHM_DuplicateCheckBatch_TEST {
         Test.stopTest();
 
         Account refreshed = [
-            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c
+            SELECT Id, Duplicate_Check_Candidate__c
             FROM Account
             WHERE Id = :sourceAcct.Id
             LIMIT 1
         ];
-
-        System.assertEquals(false, refreshed.Duplicate_Check__c);
         System.assertEquals(null, refreshed.Duplicate_Check_Candidate__c);
     }
 
     @IsTest
     static void testBatchUnsupportedObjectTypeDoesNothing() {
         Account acct = new Account(
-            Name = 'Unsupported Object Type Account',
-            Duplicate_Check__c = true
+            Name = 'Unsupported Object Type Account'
         );
         insert acct;
 
@@ -304,13 +280,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         Test.stopTest();
 
         Account refreshed = [
-            SELECT Id, Duplicate_Check__c
+            SELECT Id
             FROM Account
             WHERE Id = :acct.Id
             LIMIT 1
         ];
-
-        System.assertEquals(true, refreshed.Duplicate_Check__c);
     }
 
     @IsTest
@@ -322,8 +296,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             AccountId = acct.Id,
             FirstName = 'Blank',
             LastName = 'Csv',
-            Birthdate = Date.newInstance(1999, 9, 9),
-            Duplicate_Check__c = true
+            Birthdate = Date.newInstance(1999, 9, 9)
         );
         insert flaggedCon;
 
@@ -336,13 +309,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         Test.stopTest();
 
         Contact refreshed = [
-            SELECT Id, Duplicate_Check__c, Duplicate_Check_Candidate__c
+            SELECT Id, Duplicate_Check_Candidate__c
             FROM Contact
             WHERE Id = :flaggedCon.Id
             LIMIT 1
         ];
-
-        System.assertEquals(false, refreshed.Duplicate_Check__c);
         System.assertEquals(null, refreshed.Duplicate_Check_Candidate__c);
     }
 }

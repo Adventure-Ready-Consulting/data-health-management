@@ -10,8 +10,7 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
             AccountId = acct.Id,
             FirstName = 'John',
             LastName = 'Smith',
-            Birthdate = Date.newInstance(1980, 1, 1),
-            Duplicate_Check__c = true
+            Birthdate = Date.newInstance(1980, 1, 1)
         );
 
         DHM_DuplicateCheckBatchLauncher.Request req =
@@ -34,8 +33,7 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
     @IsTest
     static void testRunAccountBatch() {
         Account acct = new Account(
-            Name = 'Launcher Account Source',
-            Duplicate_Check__c = true
+            Name = 'Launcher Account Source'
         );
         insert acct;
 
@@ -120,8 +118,7 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
             AccountId = acct.Id,
             FirstName = 'Start',
             LastName = 'Method',
-            Birthdate = Date.newInstance(1988, 8, 8),
-            Duplicate_Check__c = true
+            Birthdate = Date.newInstance(1988, 8, 8)
         );
 
         DHM_DuplicateCheckBatchLauncher.Request req =
@@ -146,8 +143,7 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
             AccountId = acct1.Id,
             FirstName = 'John',
             LastName = 'Smith',
-            Birthdate = Date.newInstance(1980, 1, 1),
-            Duplicate_Check__c = true
+            Birthdate = Date.newInstance(1980, 1, 1)
         );
 
         DHM_DuplicateCheckBatchLauncher.Request req1 =

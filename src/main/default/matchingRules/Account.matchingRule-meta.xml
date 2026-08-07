@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<MatchingRules xmlns="http://soap.sforce.com/2006/04/metadata">
+    <matchingRules>
+        <fullName>DHM_Account_Matching_Rule_Template</fullName>
+        <label>DHM Account Matching Rule - Template</label>
+        <description>Inactive DHM template. Clone, customize, and activate the clone. Uses exact Account Name. Do not activate or edit this template.</description>
+        <matchingRuleItems>
+            <blankValueBehavior>NullNotAllowed</blankValueBehavior>
+            <fieldName>Name</fieldName>
+            <matchingMethod>Exact</matchingMethod>
+        </matchingRuleItems>
+        <ruleStatus>Inactive</ruleStatus>
+    </matchingRules>
+</MatchingRules>

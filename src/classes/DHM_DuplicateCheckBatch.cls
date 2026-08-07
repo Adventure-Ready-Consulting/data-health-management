@@ -96,13 +96,11 @@ public without sharing class DHM_DuplicateCheckBatch
         if (objectType == 'Contact') {
             soql =
                 'SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c ' +
-                'FROM Contact ' +
-                'WHERE Duplicate_Check__c = true';
+                'FROM Contact';
         } else if (objectType == 'Account') {
             soql =
                 'SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c ' +
-                'FROM Account ' +
-                'WHERE Duplicate_Check__c = true';
+                'FROM Account';
         } else {
             soql = 'SELECT Id FROM Account WHERE Id = null';
         }
@@ -225,12 +223,11 @@ public without sharing class DHM_DuplicateCheckBatch
                     LoggingLevel.DEBUG,
                     '***** DHM_DuplicateCheckBatch::processContacts missing queried Contact for Id=' +
                     String.valueOf(contactId) +
-                    ' - clearing Duplicate_Check__c'
+                    ''
                 );
 
                 Contact updateCon = new Contact(
-                    Id = contactId,
-                    Duplicate_Check__c = false
+                    Id = contactId
                 );
                 DHM_SharedCode.ClearDuplicateCheckError(updateCon);
                 updates.add(updateCon);
@@ -252,12 +249,11 @@ public without sharing class DHM_DuplicateCheckBatch
                     LoggingLevel.DEBUG,
                     '***** DHM_DuplicateCheckBatch::processContacts skipping Contact Id=' +
                     String.valueOf(con.Id) +
-                    ' due to missing required match fields; clearing Duplicate_Check__c'
+                    ' due to missing required match fields'
                 );
 
                 Contact updateCon = new Contact(
-                    Id = con.Id,
-                    Duplicate_Check__c = false
+                    Id = con.Id
                 );
                 DHM_SharedCode.ClearDuplicateCheckError(updateCon);
                 updates.add(updateCon);
@@ -265,8 +261,7 @@ public without sharing class DHM_DuplicateCheckBatch
             }
 
             Contact updateCon = new Contact(
-                Id = con.Id,
-                Duplicate_Check__c = false
+                Id = con.Id
             );
 
             try {
@@ -399,12 +394,11 @@ public without sharing class DHM_DuplicateCheckBatch
                     LoggingLevel.DEBUG,
                     '***** DHM_DuplicateCheckBatch::processAccounts missing queried Account for Id=' +
                     String.valueOf(accountId) +
-                    ' - clearing Duplicate_Check__c'
+                    ''
                 );
 
                 Account updateAcc = new Account(
-                    Id = accountId,
-                    Duplicate_Check__c = false
+                    Id = accountId
                 );
                 DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
                 updates.add(updateAcc);
@@ -427,12 +421,11 @@ public without sharing class DHM_DuplicateCheckBatch
                     LoggingLevel.DEBUG,
                     '***** DHM_DuplicateCheckBatch::processAccounts skipping Account Id=' +
                     String.valueOf(acc.Id) +
-                    ' due to no related Contacts with all required match fields populated; clearing Duplicate_Check__c'
+                    ' due to no related Contacts with all required match fields populated'
                 );
 
                 Account updateAcc = new Account(
-                    Id = acc.Id,
-                    Duplicate_Check__c = false
+                    Id = acc.Id
                 );
                 DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
                 updates.add(updateAcc);
@@ -440,8 +433,7 @@ public without sharing class DHM_DuplicateCheckBatch
             }
 
             Account updateAcc = new Account(
-                Id = acc.Id,
-                Duplicate_Check__c = false
+                Id = acc.Id
             );
 
             try {

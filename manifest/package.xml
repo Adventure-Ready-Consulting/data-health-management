@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
         <members>DHM_SharedCode</members>
@@ -21,10 +21,8 @@
         <name>ApexClass</name>
     </types>
     <types>
-        <members>Account.Duplicate_Check__c</members>
         <members>Account.Duplicate_Check_Candidate__c</members>
         <members>Account.Duplicate_Check_Error__c</members>
-        <members>Contact.Duplicate_Check__c</members>
         <members>Contact.Duplicate_Check_Candidate__c</members>
         <members>Contact.Duplicate_Check_Error__c</members>
         <members>DHM_Merge_Account_History__c.Account__c</members>
@@ -49,6 +47,11 @@
         <members>DHM_Merge_Contact_History__c</members>
         <members>DHM_Settings__c</members>
         <name>CustomObject</name>
+    </types>
+    <types>
+        <members>Account.DHM_Account_Matching_Rule_Template</members>
+        <members>Contact.DHM_Contact_Matching_Rule_Template</members>
+        <name>MatchingRule</name>
     </types>
     <version>45.0</version>
 </Package>
