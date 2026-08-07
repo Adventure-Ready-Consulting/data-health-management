@@ -2,7 +2,7 @@
 <MatchingRules xmlns="http://soap.sforce.com/2006/04/metadata">
     <matchingRules>
         <fullName>DHM_Contact_Matching_Rule_Template</fullName>
-        <description>Inactive DHM template. Clone and activate a customer-owned version. DHM uses Contact Duplicate Rules for both Contact merging and Account candidate discovery.</description>
+        <description>Inactive DHM template. Clone and activate a customer-owned version. DHM uses First Name and Last Name for broad candidate discovery. Configure Additional Match Fields (for example Birthdate) in the DHM Flow action for exact post-validation.</description>
         <label>DHM Contact Matching Rule - Template</label>
         <matchingRuleItems>
             <blankValueBehavior>NullNotAllowed</blankValueBehavior>
@@ -12,11 +12,6 @@
         <matchingRuleItems>
             <blankValueBehavior>NullNotAllowed</blankValueBehavior>
             <fieldName>LastName</fieldName>
-            <matchingMethod>Exact</matchingMethod>
-        </matchingRuleItems>
-        <matchingRuleItems>
-            <blankValueBehavior>NullNotAllowed</blankValueBehavior>
-            <fieldName>Email</fieldName>
             <matchingMethod>Exact</matchingMethod>
         </matchingRuleItems>
         <ruleStatus>Inactive</ruleStatus>

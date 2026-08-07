@@ -319,6 +319,62 @@ private class DHM_DuplicateCheckBatch_TEST {
 
 
     @IsTest
+    static void testSourceRecordIdLimitsAccountBatchToOneSource() {
+        Account sourceAcct = new Account(Name = 'Focused Source');
+        Account otherAcct = new Account(Name = 'Other Source');
+        Account targetAcct = new Account(Name = 'Focused Target');
+        insert new List<Account>{ sourceAcct, otherAcct, targetAcct };
+
+        Contact sourceCon = new Contact(
+            AccountId = sourceAcct.Id,
+            FirstName = 'Focused',
+            LastName = 'Match',
+            Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        Contact otherCon = new Contact(
+            AccountId = otherAcct.Id,
+            FirstName = 'Other',
+            LastName = 'Match',
+            Birthdate = Date.newInstance(1981, 1, 1)
+        );
+        Contact targetCon = new Contact(
+            AccountId = targetAcct.Id,
+            FirstName = 'Focused',
+            LastName = 'Match',
+            Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        insert new List<Contact>{ sourceCon, otherCon, targetCon };
+
+        DHM_DuplicateRuleCandidateService.setTestCandidates(
+            new Map<Id, Set<Id>>{ sourceCon.Id => new Set<Id>{ targetCon.Id } }
+        );
+
+        Test.startTest();
+        DHM_DuplicateCheckBatch.startBatch(
+            'Account',
+            false,
+            null,
+            null,
+            1,
+            sourceAcct.Id
+        );
+        Test.stopTest();
+
+        Account refreshedSource = [
+            SELECT Duplicate_Check_Candidate__c
+            FROM Account WHERE Id = :sourceAcct.Id
+        ];
+        Account refreshedOther = [
+            SELECT Duplicate_Check_Candidate__c
+            FROM Account WHERE Id = :otherAcct.Id
+        ];
+
+        System.assertEquals(targetAcct.Id, refreshedSource.Duplicate_Check_Candidate__c);
+        System.assertEquals(null, refreshedOther.Duplicate_Check_Candidate__c);
+        DHM_DuplicateRuleCandidateService.clearTestCandidates();
+    }
+
+    @IsTest
     static void testMaxMergesLimitsEvaluationOnlyRun() {
         Account acct = new Account(Name = 'Max Merge Test Household');
         insert acct;

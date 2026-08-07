@@ -6,7 +6,8 @@ Id jobId = DHM_DuplicateCheckBatch.startBatch(
     false,
     null,
     'C501_Age_Calculate__c < 18',
-    1
+    1,
+    null // optional source Account/Contact Id; use an Id here for a focused test
 );
 System.debug('Batch Job Id = ' + jobId);
 */
@@ -20,9 +21,12 @@ public without sharing class DHM_DuplicateCheckBatch
 
     private String objectType;
     private Boolean performMerge;
+    // Legacy internal name retained for compatibility. In Version 2.0 production paths,
+    // this contains Flow input additionalMatchFieldsCsv (for example, Birthdate).
     private String matchFieldsCsv;
     private String contactExclusionCriteria;
     private Integer maxMerges;
+    private Id sourceRecordId;
 
     private Integer processedCount = 0;
     private Integer updatedCount = 0;
@@ -45,7 +49,7 @@ public without sharing class DHM_DuplicateCheckBatch
         String matchFieldsCsv,
         String contactExclusionCriteria
     ) {
-        this(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, null);
+        this(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, null, null);
     }
 
     public DHM_DuplicateCheckBatch(
@@ -55,11 +59,23 @@ public without sharing class DHM_DuplicateCheckBatch
         String contactExclusionCriteria,
         Integer maxMerges
     ) {
+        this(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, maxMerges, null);
+    }
+
+    public DHM_DuplicateCheckBatch(
+        String objectType,
+        Boolean performMerge,
+        String matchFieldsCsv,
+        String contactExclusionCriteria,
+        Integer maxMerges,
+        Id sourceRecordId
+    ) {
         this.objectType = objectType;
         this.performMerge = performMerge == null ? false : performMerge;
         this.matchFieldsCsv = matchFieldsCsv;
         this.contactExclusionCriteria = contactExclusionCriteria;
         this.maxMerges = (maxMerges == null || maxMerges <= 0) ? null : maxMerges;
+        this.sourceRecordId = sourceRecordId;
 
         DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
@@ -67,7 +83,8 @@ public without sharing class DHM_DuplicateCheckBatch
             ', performMerge=' + String.valueOf(this.performMerge) +
             ', matchFieldsCsv=' + matchFieldsCsv +
             ', contactExclusionCriteria=' + this.contactExclusionCriteria +
-            ', maxMerges=' + String.valueOf(this.maxMerges)
+            ', maxMerges=' + String.valueOf(this.maxMerges) +
+            ', sourceRecordId=' + String.valueOf(this.sourceRecordId)
         );
     }
 
@@ -95,6 +112,17 @@ public without sharing class DHM_DuplicateCheckBatch
         String contactExclusionCriteria,
         Integer maxMerges
     ) {
+        return startBatch(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, maxMerges, null);
+    }
+
+    public static Id startBatch(
+        String objectType,
+        Boolean performMerge,
+        String matchFieldsCsv,
+        String contactExclusionCriteria,
+        Integer maxMerges,
+        Id sourceRecordId
+    ) {
         Integer batchSizeToUse = Test.isRunningTest() ? 200 : REQUIRED_BATCH_SIZE;
 
         DHM_SharedCode.OutputDebugLogText(
@@ -104,6 +132,7 @@ public without sharing class DHM_DuplicateCheckBatch
             ', matchFieldsCsv=' + matchFieldsCsv +
             ', contactExclusionCriteria=' + contactExclusionCriteria +
             ', maxMerges=' + String.valueOf(maxMerges) +
+            ', sourceRecordId=' + String.valueOf(sourceRecordId) +
             ', batchSize=' + String.valueOf(batchSizeToUse)
         );
 
@@ -113,7 +142,8 @@ public without sharing class DHM_DuplicateCheckBatch
                 performMerge,
                 matchFieldsCsv,
                 contactExclusionCriteria,
-                maxMerges
+                maxMerges,
+                sourceRecordId
             ),
             batchSizeToUse
         );
@@ -125,11 +155,13 @@ public without sharing class DHM_DuplicateCheckBatch
         if (objectType == 'Contact') {
             soql =
                 'SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c ' +
-                'FROM Contact';
+                'FROM Contact' +
+                (sourceRecordId == null ? '' : ' WHERE Id = :sourceRecordId');
         } else if (objectType == 'Account') {
             soql =
                 'SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c ' +
-                'FROM Account';
+                'FROM Account' +
+                (sourceRecordId == null ? '' : ' WHERE Id = :sourceRecordId');
         } else {
             soql = 'SELECT Id FROM Account WHERE Id = null';
         }
@@ -138,6 +170,7 @@ public without sharing class DHM_DuplicateCheckBatch
             LoggingLevel.DEBUG,
             '***** DHM_DuplicateCheckBatch::start jobId=' + bc.getJobId() +
             ', objectType=' + objectType +
+            ', sourceRecordId=' + String.valueOf(sourceRecordId) +
             ', soql=' + soql
         );
 

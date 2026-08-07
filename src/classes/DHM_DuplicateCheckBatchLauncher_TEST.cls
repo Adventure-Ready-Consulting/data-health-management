@@ -135,6 +135,61 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
     }
 
     @IsTest
+    static void testRunAccountBatchWithSourceRecordId() {
+        Account acct = new Account(Name = 'Launcher Focused Account');
+        insert acct;
+
+        insert new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Focused',
+            LastName = 'Person',
+            Birthdate = Date.newInstance(1985, 1, 1)
+        );
+
+        DHM_DuplicateCheckBatchLauncher.Request req =
+            new DHM_DuplicateCheckBatchLauncher.Request();
+        req.objectType = 'Account';
+        req.performMerge = false;
+        req.maxMerges = 1;
+        req.recordId = acct.Id;
+
+        Test.startTest();
+        List<DHM_DuplicateCheckBatchLauncher.Result> results =
+            DHM_DuplicateCheckBatchLauncher.run(
+                new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
+            );
+        Test.stopTest();
+
+        System.assertEquals(1, results.size());
+        System.assertNotEquals(null, results[0].jobId);
+    }
+
+    @IsTest
+    static void testRejectsMismatchedSourceRecordIdType() {
+        Account acct = new Account(Name = 'Wrong Type Account');
+        insert acct;
+        Contact con = new Contact(AccountId = acct.Id, LastName = 'Wrong Type');
+        insert con;
+
+        DHM_DuplicateCheckBatchLauncher.Request req =
+            new DHM_DuplicateCheckBatchLauncher.Request();
+        req.objectType = 'Account';
+        req.recordId = con.Id;
+
+        List<DHM_DuplicateCheckBatchLauncher.Result> results =
+            DHM_DuplicateCheckBatchLauncher.run(
+                new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
+            );
+
+        System.assertEquals(1, results.size());
+        System.assertEquals(null, results[0].jobId);
+        System.assertEquals(
+            'Source Record Id does not match objectType Account.',
+            results[0].message
+        );
+    }
+
+    @IsTest
     static void testRunMultipleRequests() {
         Account acct1 = new Account(Name = 'Launcher Multi Contact');
         insert acct1;

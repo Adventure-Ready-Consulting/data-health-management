@@ -8,6 +8,12 @@
         <actionName>DHM_DuplicateCheckBatchLauncher</actionName>
         <actionType>apex</actionType>
         <inputParameters>
+            <name>additionalMatchFieldsCsv</name>
+            <value>
+                <stringValue>Birthdate</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
             <name>maxMerges</name>
             <value>
                 <numberValue>1.0</numberValue>

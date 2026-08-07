@@ -3,8 +3,8 @@ minimum_cumulusci_version: '2.5.8'
 project:
     name: Data-Health_Management
     package:
-        name: Mass Merge
-        api_version: '45.0'
+        name: Data Health Management
+        api_version: '64.0'
 
 orgs:
     scratch:

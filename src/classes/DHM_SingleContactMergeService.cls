@@ -1,6 +1,7 @@
 public without sharing class DHM_SingleContactMergeService {
 
-    public static final String DEFAULT_MATCH_FIELDS_CSV = 'FirstName,LastName,Birthdate';
+    public static final String DEFAULT_MATCH_FIELDS_CSV = '';
+    private static final String LEGACY_DEFAULT_MATCH_FIELDS_CSV = 'FirstName,LastName,Birthdate';
 
     public class MatchBundle {
         public Id accountId;
@@ -14,7 +15,7 @@ public without sharing class DHM_SingleContactMergeService {
         Id sourceContactId,
         Boolean performMerge
     ) {
-        return evaluateAndMerge(sourceContactId, performMerge, DEFAULT_MATCH_FIELDS_CSV);
+        return evaluateAndMerge(sourceContactId, performMerge, null);
     }
     
     public static DHM_SingleContactMerge.Result evaluateAndMerge(
@@ -58,14 +59,23 @@ public without sharing class DHM_SingleContactMergeService {
         // Existing unit tests that do not install a candidate map continue to exercise
         // the legacy helper path. Production and Version 2.0 tests use Duplicate Rules.
         if (Test.isRunningTest() && !DHM_DuplicateRuleCandidateService.hasTestCandidates()) {
-            return evaluateAndMergeLegacy(sourceContactId, performMerge, matchFieldsCsv);
+            return evaluateAndMergeLegacy(
+                sourceContactId,
+                performMerge,
+                String.isBlank(matchFieldsCsv) ? LEGACY_DEFAULT_MATCH_FIELDS_CSV : matchFieldsCsv
+            );
         }
 
         Set<Id> duplicateIds =
             DHM_DuplicateRuleCandidateService.findCandidates(sourceContact.Id);
+        duplicateIds = DHM_DuplicateRuleCandidateService.filterContactCandidatesByAdditionalFields(
+            sourceContact.Id,
+            duplicateIds,
+            matchFieldsCsv
+        );
         if (duplicateIds.isEmpty()) {
             res.masterContactId = sourceContact.Id;
-            res.message = 'No duplicate Contact was found by active Salesforce Duplicate Rules.';
+            res.message = 'No eligible duplicate Contact remained after Salesforce Duplicate Rules and DHM Additional Match Fields validation.';
             return res;
         }
 
@@ -199,7 +209,7 @@ public without sharing class DHM_SingleContactMergeService {
 
     @TestVisible
     static MatchBundle findMatchesWithinAccount(Contact inputContact) {
-        return findMatchesWithinAccount(inputContact, parseMatchFields(DEFAULT_MATCH_FIELDS_CSV));
+        return findMatchesWithinAccount(inputContact, parseMatchFields(LEGACY_DEFAULT_MATCH_FIELDS_CSV));
     }
 
     @TestVisible
@@ -258,7 +268,7 @@ public without sharing class DHM_SingleContactMergeService {
         List<String> matchFields = new List<String>();
 
         String effectiveCsv = String.isBlank(matchFieldsCsv)
-            ? DEFAULT_MATCH_FIELDS_CSV
+            ? LEGACY_DEFAULT_MATCH_FIELDS_CSV
             : matchFieldsCsv;
 
         for (String fieldName : effectiveCsv.split(',')) {

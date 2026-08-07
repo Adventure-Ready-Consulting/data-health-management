@@ -10,6 +10,12 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
         public Boolean performMerge;
 
         @InvocableVariable(
+            label='Additional Match Fields'
+            description='Optional comma-separated Contact field API names that DHM must match exactly after Salesforce Duplicate Rules return candidates. All configured fields must be populated and equal on both Contacts. Example: Birthdate'
+        )
+        public String additionalMatchFieldsCsv;
+
+        @InvocableVariable(
             label='Contact Exclusion Criteria'
             description='Validated Contact WHERE criteria. If any Contact in either Account matches, the Account merge is skipped. Example: C501_Age_Calculate__c < 18'
         )
@@ -20,6 +26,12 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
             description='Optional testing limit. When greater than 0, DHM stops evaluating new records after this many eligible merges are discovered (performMerge=false) or completed (performMerge=true). Leave blank or set to 0 for no limit.'
         )
         public Integer maxMerges;
+
+        @InvocableVariable(
+            label='Source Record Id'
+            description='Optional source Account or Contact Id. When supplied, DHM evaluates only this source record while duplicate candidates can still be found anywhere in Salesforce. Leave blank for a full production scan.'
+        )
+        public Id recordId;
     }
 
     public class Result {
@@ -75,8 +87,10 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                 '***** DHM_DuplicateCheckBatchLauncher::run Request #' + reqIndex +
                 ' objectType=' + req.objectType +
                 ', performMerge=' + String.valueOf(req.performMerge) +
+                ', additionalMatchFieldsCsv=' + req.additionalMatchFieldsCsv +
                 ', contactExclusionCriteria=' + req.contactExclusionCriteria +
                 ', maxMerges=' + String.valueOf(req.maxMerges) +
+                ', recordId=' + String.valueOf(req.recordId) +
                 ', batchSize=' + String.valueOf(scopeSize)
             );
 
@@ -108,13 +122,33 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                 continue;
             }
 
+            if (req.recordId != null) {
+                Schema.SObjectType expectedType =
+                    req.objectType == 'Account' ? Account.SObjectType : Contact.SObjectType;
+
+                if (req.recordId.getSObjectType() != expectedType) {
+                    res.message = 'Source Record Id does not match objectType ' + req.objectType + '.';
+                    res.jobId = null;
+                    results.add(res);
+
+                    DHM_SharedCode.OutputDebugLogText(
+                        LoggingLevel.DEBUG,
+                        '***** DHM_DuplicateCheckBatchLauncher::run Request #' + reqIndex +
+                        ' skipped - recordId=' + String.valueOf(req.recordId) +
+                        ' does not match objectType=' + req.objectType
+                    );
+                    continue;
+                }
+            }
+
             Id batchJobId = Database.executeBatch(
                 new DHM_DuplicateCheckBatch(
                     req.objectType,
                     req.performMerge,
-                    null,
+                    req.additionalMatchFieldsCsv,
                     req.contactExclusionCriteria,
-                    req.maxMerges
+                    req.maxMerges,
+                    req.recordId
                 ),
                 scopeSize
             );

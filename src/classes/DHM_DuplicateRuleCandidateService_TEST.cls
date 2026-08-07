@@ -77,4 +77,63 @@ private class DHM_DuplicateRuleCandidateService_TEST {
         System.assertEquals(true, candidates.contains(candidate.Id));
         DHM_DuplicateRuleCandidateService.clearTestCandidates();
     }
+
+
+    @IsTest
+    static void testAdditionalMatchFieldsFiltersByBirthdate() {
+        Account acct = new Account(Name = 'Additional Match Household');
+        insert acct;
+
+        Contact source = new Contact(
+            FirstName = 'David', LastName = 'Boyce', AccountId = acct.Id,
+            Birthdate = Date.newInstance(1972, 1, 1)
+        );
+        Contact matching = new Contact(
+            FirstName = 'David', LastName = 'Boyce', AccountId = acct.Id,
+            Birthdate = Date.newInstance(1972, 1, 1)
+        );
+        Contact differentDob = new Contact(
+            FirstName = 'David', LastName = 'Boyce', AccountId = acct.Id,
+            Birthdate = Date.newInstance(1973, 1, 1)
+        );
+        insert new List<Contact>{ source, matching, differentDob };
+
+        Set<Id> filtered = DHM_DuplicateRuleCandidateService.filterContactCandidatesByAdditionalFields(
+            source.Id,
+            new Set<Id>{ matching.Id, differentDob.Id },
+            'Birthdate'
+        );
+
+        System.assertEquals(new Set<Id>{ matching.Id }, filtered);
+    }
+
+    @IsTest
+    static void testAdditionalMatchFieldsRejectsBlankBirthdateAndInvalidField() {
+        Account acct = new Account(Name = 'Blank Additional Match Household');
+        insert acct;
+
+        Contact source = new Contact(LastName = 'Boyce', AccountId = acct.Id);
+        Contact candidate = new Contact(LastName = 'Boyce', AccountId = acct.Id);
+        insert new List<Contact>{ source, candidate };
+
+        Set<Id> filtered = DHM_DuplicateRuleCandidateService.filterContactCandidatesByAdditionalFields(
+            source.Id,
+            new Set<Id>{ candidate.Id },
+            'Birthdate'
+        );
+        System.assertEquals(0, filtered.size(), 'Two blank identity fields must not be treated as a match.');
+
+        Boolean threwExpectedError = false;
+        try {
+            DHM_DuplicateRuleCandidateService.filterContactCandidatesByAdditionalFields(
+                source.Id,
+                new Set<Id>{ candidate.Id },
+                'Not_A_Contact_Field__c'
+            );
+        } catch (DHM_DuplicateRuleCandidateService.DuplicateRuleException e) {
+            threwExpectedError = true;
+        }
+        System.assertEquals(true, threwExpectedError);
+    }
+
 }

@@ -1,6 +1,7 @@
 public without sharing class DHM_SingleAccountMergeService {
 
-    public static final String DEFAULT_MATCH_FIELDS_CSV = 'FirstName,LastName,Birthdate';
+    public static final String DEFAULT_MATCH_FIELDS_CSV = '';
+    private static final String LEGACY_DEFAULT_MATCH_FIELDS_CSV = 'FirstName,LastName,Birthdate';
 
     public class MatchBundle {
         public Id sourceAccountId;
@@ -17,7 +18,7 @@ public without sharing class DHM_SingleAccountMergeService {
         Id sourceAccountId,
         Boolean performMerge
     ) {
-        return evaluateAndMerge(sourceAccountId, performMerge, DEFAULT_MATCH_FIELDS_CSV, null);
+        return evaluateAndMerge(sourceAccountId, performMerge, null, null);
     }
 
     public static DHM_SingleAccountMerge.Result evaluateAndMerge(
@@ -96,7 +97,8 @@ public without sharing class DHM_SingleAccountMergeService {
             matchBundle = findTargetAccountUsingDuplicateRules(
                 sourceAccount,
                 sourceContacts,
-                contactExclusionCriteria
+                contactExclusionCriteria,
+                matchFieldsCsv
             );
         }
 
@@ -159,7 +161,7 @@ public without sharing class DHM_SingleAccountMergeService {
         return findTargetAccountForSource(
             sourceAccount,
             sourceContacts,
-            parseMatchFields(DEFAULT_MATCH_FIELDS_CSV),
+            parseMatchFields(LEGACY_DEFAULT_MATCH_FIELDS_CSV),
             null
         );
     }
@@ -311,7 +313,8 @@ public without sharing class DHM_SingleAccountMergeService {
     static MatchBundle findTargetAccountUsingDuplicateRules(
         Account sourceAccount,
         List<Contact> sourceContacts,
-        String contactExclusionCriteria
+        String contactExclusionCriteria,
+        String additionalMatchFieldsCsv
     ) {
         if (sourceAccount == null || sourceAccount.Id == null ||
             sourceContacts == null || sourceContacts.isEmpty()) {
@@ -329,6 +332,11 @@ public without sharing class DHM_SingleAccountMergeService {
 
         Map<Id, Set<Id>> duplicateContactIdsBySourceId =
             DHM_DuplicateRuleCandidateService.findCandidates(sourceContactIds);
+        duplicateContactIdsBySourceId =
+            DHM_DuplicateRuleCandidateService.filterContactCandidatesByAdditionalFields(
+                duplicateContactIdsBySourceId,
+                additionalMatchFieldsCsv
+            );
 
         Set<Id> possibleDuplicateContactIds = new Set<Id>();
         for (Set<Id> duplicateIds : duplicateContactIdsBySourceId.values()) {
@@ -384,7 +392,8 @@ public without sharing class DHM_SingleAccountMergeService {
                 sourceAccount.Id,
                 sourceContacts,
                 candidate.Id,
-                candidate.Contacts
+                candidate.Contacts,
+                additionalMatchFieldsCsv
             );
             if (sourceIntoCandidate != null) {
                 return sourceIntoCandidate;
@@ -394,7 +403,8 @@ public without sharing class DHM_SingleAccountMergeService {
                 candidate.Id,
                 candidate.Contacts,
                 sourceAccount.Id,
-                sourceContacts
+                sourceContacts,
+                additionalMatchFieldsCsv
             );
             if (candidateIntoSource != null) {
                 return candidateIntoSource;
@@ -407,7 +417,8 @@ public without sharing class DHM_SingleAccountMergeService {
         Id duplicateAccountId,
         List<Contact> duplicateContacts,
         Id masterAccountId,
-        List<Contact> masterContacts
+        List<Contact> masterContacts,
+        String additionalMatchFieldsCsv
     ) {
         if (duplicateContacts == null || duplicateContacts.isEmpty() ||
             masterContacts == null || masterContacts.isEmpty()) {
@@ -420,6 +431,10 @@ public without sharing class DHM_SingleAccountMergeService {
         }
         Map<Id, Set<Id>> rawCandidates =
             DHM_DuplicateRuleCandidateService.findCandidates(duplicateContactIds);
+        rawCandidates = DHM_DuplicateRuleCandidateService.filterContactCandidatesByAdditionalFields(
+            rawCandidates,
+            additionalMatchFieldsCsv
+        );
         Map<Id, Contact> masterContactsById = new Map<Id, Contact>(masterContacts);
 
         Map<Id, List<Id>> eligibleMasterIdsByDuplicateId = new Map<Id, List<Id>>();
@@ -844,7 +859,7 @@ public without sharing class DHM_SingleAccountMergeService {
         List<String> matchFields = new List<String>();
 
         String effectiveCsv = String.isBlank(matchFieldsCsv)
-            ? DEFAULT_MATCH_FIELDS_CSV
+            ? LEGACY_DEFAULT_MATCH_FIELDS_CSV
             : matchFieldsCsv;
 
         for (String fieldName : effectiveCsv.split(',')) {
