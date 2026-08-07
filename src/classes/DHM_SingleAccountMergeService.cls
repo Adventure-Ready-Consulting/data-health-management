@@ -101,7 +101,7 @@ public without sharing class DHM_SingleAccountMergeService {
         }
 
         if (matchBundle == null) {
-            res.message = 'No target account found where all source contacts match on required fields.';
+            res.message = 'No target account found where all Contacts in one Account have distinct matches in the other Account.';
             return res;
         }
 
@@ -318,8 +318,42 @@ public without sharing class DHM_SingleAccountMergeService {
             return null;
         }
 
-        Set<Id> accountCandidateIds =
-            DHM_DuplicateRuleCandidateService.findCandidates(sourceAccount.Id);
+        // Version 2.0: Account candidates are derived entirely from Contact Duplicate Rules.
+        // Account names can change with household composition, so an Account Matching Rule
+        // is not a reliable way to discover household candidates. A duplicate Contact in
+        // another Account is enough to nominate that Account for the full DHM household check.
+        Set<Id> sourceContactIds = new Set<Id>();
+        for (Contact sourceContact : sourceContacts) {
+            sourceContactIds.add(sourceContact.Id);
+        }
+
+        Map<Id, Set<Id>> duplicateContactIdsBySourceId =
+            DHM_DuplicateRuleCandidateService.findCandidates(sourceContactIds);
+
+        Set<Id> possibleDuplicateContactIds = new Set<Id>();
+        for (Set<Id> duplicateIds : duplicateContactIdsBySourceId.values()) {
+            if (duplicateIds != null) {
+                possibleDuplicateContactIds.addAll(duplicateIds);
+            }
+        }
+        possibleDuplicateContactIds.removeAll(sourceContactIds);
+
+        if (possibleDuplicateContactIds.isEmpty()) {
+            return null;
+        }
+
+        Set<Id> accountCandidateIds = new Set<Id>();
+        Id sourceAccountId = sourceAccount.Id;
+        for (Contact duplicateContact : [
+            SELECT Id, AccountId
+            FROM Contact
+            WHERE Id IN :possibleDuplicateContactIds
+              AND AccountId != null
+              AND AccountId != :sourceAccountId
+        ]) {
+            accountCandidateIds.add(duplicateContact.AccountId);
+        }
+
         if (accountCandidateIds.isEmpty()) {
             return null;
         }

@@ -316,4 +316,49 @@ private class DHM_DuplicateCheckBatch_TEST {
         ];
         System.assertEquals(null, refreshed.Duplicate_Check_Candidate__c);
     }
+
+
+    @IsTest
+    static void testMaxMergesLimitsEvaluationOnlyRun() {
+        Account acct = new Account(Name = 'Max Merge Test Household');
+        insert acct;
+
+        Contact con1 = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Limit',
+            LastName = 'Tester',
+            Birthdate = Date.newInstance(1990, 1, 1)
+        );
+        Contact con2 = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Limit',
+            LastName = 'Tester',
+            Birthdate = Date.newInstance(1990, 1, 1)
+        );
+        insert new List<Contact>{ con1, con2 };
+
+        Test.startTest();
+        DHM_DuplicateCheckBatch.startBatch(
+            'Contact',
+            false,
+            'FirstName,LastName,Birthdate',
+            null,
+            1
+        );
+        Test.stopTest();
+
+        Set<Id> testContactIds = new Set<Id>{ con1.Id, con2.Id };
+        Integer candidateCount = [
+            SELECT COUNT()
+            FROM Contact
+            WHERE Id IN :testContactIds
+              AND Duplicate_Check_Candidate__c != null
+        ];
+
+        System.assertEquals(
+            1,
+            candidateCount,
+            'maxMerges=1 should stop evaluation after the first eligible merge is discovered.'
+        );
+    }
 }

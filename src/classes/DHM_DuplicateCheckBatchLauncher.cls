@@ -1,6 +1,6 @@
 public with sharing class DHM_DuplicateCheckBatchLauncher {
 
-    public static final Integer DEFAULT_BATCH_SIZE = 1;
+    public static final Integer DEFAULT_BATCH_SIZE = 50;
 
     public class Request {
         @InvocableVariable(required=true)
@@ -14,6 +14,12 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
             description='Validated Contact WHERE criteria. If any Contact in either Account matches, the Account merge is skipped. Example: C501_Age_Calculate__c < 18'
         )
         public String contactExclusionCriteria;
+
+        @InvocableVariable(
+            label='Maximum Merges'
+            description='Optional testing limit. When greater than 0, DHM stops evaluating new records after this many eligible merges are discovered (performMerge=false) or completed (performMerge=true). Leave blank or set to 0 for no limit.'
+        )
+        public Integer maxMerges;
     }
 
     public class Result {
@@ -70,6 +76,7 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                 ' objectType=' + req.objectType +
                 ', performMerge=' + String.valueOf(req.performMerge) +
                 ', contactExclusionCriteria=' + req.contactExclusionCriteria +
+                ', maxMerges=' + String.valueOf(req.maxMerges) +
                 ', batchSize=' + String.valueOf(scopeSize)
             );
 
@@ -106,7 +113,8 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                     req.objectType,
                     req.performMerge,
                     null,
-                    req.contactExclusionCriteria
+                    req.contactExclusionCriteria,
+                    req.maxMerges
                 ),
                 scopeSize
             );

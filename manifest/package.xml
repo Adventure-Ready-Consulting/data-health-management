@@ -49,9 +49,13 @@
         <name>CustomObject</name>
     </types>
     <types>
-        <members>Account.DHM_Account_Matching_Rule_Template</members>
         <members>Contact.DHM_Contact_Matching_Rule_Template</members>
         <name>MatchingRule</name>
+    </types>
+    <types>
+        <members>DHM_Process_Duplicate_Accounts</members>
+        <members>DHM_Process_Duplicate_Contacts</members>
+        <name>Flow</name>
     </types>
     <version>45.0</version>
 </Package>

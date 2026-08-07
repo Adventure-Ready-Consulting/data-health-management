@@ -130,7 +130,7 @@ private class DHM_SingleAccountMerge_TEST {
 
         System.assertEquals(false, result.candidateFound);
         System.assertEquals(false, result.merged);
-        System.assertEquals('No target account found where all source contacts match on required fields.', result.message);
+        System.assertEquals('No target account found where all Contacts in one Account have distinct matches in the other Account.', result.message);
     }
 
     @IsTest
@@ -408,7 +408,7 @@ private class DHM_SingleAccountMerge_TEST {
 
         System.assertEquals(false, result.candidateFound);
         System.assertEquals(
-            'No target account found where all source contacts match on required fields.',
+            'No target account found where all Contacts in one Account have distinct matches in the other Account.',
             result.message
         );
     }
@@ -456,4 +456,97 @@ private class DHM_SingleAccountMerge_TEST {
         ];
         System.assertEquals(target.Id, refreshed.AccountId);
     }    
+
+
+    @IsTest
+    static void testDuplicateRulesDeriveAccountCandidateFromContactMatches() {
+        Account source = new Account(Name = 'Source Household Different Name');
+        Account target = new Account(Name = 'Completely Different Household Name');
+        insert new List<Account>{ source, target };
+
+        Contact sourceOne = new Contact(AccountId = source.Id, FirstName = 'John', LastName = 'Smith');
+        Contact sourceTwo = new Contact(AccountId = source.Id, FirstName = 'Mary', LastName = 'Jones');
+        Contact targetOne = new Contact(AccountId = target.Id, FirstName = 'John', LastName = 'Smith');
+        Contact targetTwo = new Contact(AccountId = target.Id, FirstName = 'Mary', LastName = 'Jones');
+        Contact targetExtra = new Contact(AccountId = target.Id, FirstName = 'Extra', LastName = 'Member');
+        insert new List<Contact>{ sourceOne, sourceTwo, targetOne, targetTwo, targetExtra };
+
+        // Deliberately provide Contact candidate mappings only. There is no Account
+        // candidate mapping, proving Account discovery is driven by Contact Duplicate Rules.
+        DHM_DuplicateRuleCandidateService.setTestCandidates(new Map<Id, Set<Id>>{
+            sourceOne.Id => new Set<Id>{ targetOne.Id },
+            sourceTwo.Id => new Set<Id>{ targetTwo.Id }
+        });
+
+        Test.startTest();
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false);
+        Test.stopTest();
+
+        DHM_DuplicateRuleCandidateService.clearTestCandidates();
+
+        System.assertEquals(true, result.candidateFound);
+        System.assertEquals(target.Id, result.masterAccountId);
+        System.assertEquals(source.Id, result.duplicateAccountId);
+    }
+
+    @IsTest
+    static void testDuplicateRulesCanMergeSmallerCandidateIntoSource() {
+        Account source = new Account(Name = 'Larger Source Household');
+        Account candidate = new Account(Name = 'Smaller Candidate Household');
+        insert new List<Account>{ source, candidate };
+
+        Contact sourceOne = new Contact(AccountId = source.Id, LastName = 'Smith');
+        Contact sourceExtra = new Contact(AccountId = source.Id, LastName = 'Unmatched Adult');
+        Contact candidateOne = new Contact(AccountId = candidate.Id, LastName = 'Smith');
+        insert new List<Contact>{ sourceOne, sourceExtra, candidateOne };
+
+        DHM_DuplicateRuleCandidateService.setTestCandidates(new Map<Id, Set<Id>>{
+            sourceOne.Id => new Set<Id>{ candidateOne.Id },
+            sourceExtra.Id => new Set<Id>(),
+            candidateOne.Id => new Set<Id>{ sourceOne.Id }
+        });
+
+        Test.startTest();
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false);
+        Test.stopTest();
+
+        DHM_DuplicateRuleCandidateService.clearTestCandidates();
+
+        System.assertEquals(true, result.candidateFound);
+        System.assertEquals(source.Id, result.masterAccountId);
+        System.assertEquals(candidate.Id, result.duplicateAccountId);
+    }
+
+    @IsTest
+    static void testDuplicateRulesRequireDistinctContactMatches() {
+        Account source = new Account(Name = 'Source Twins Contact Driven');
+        Account candidate = new Account(Name = 'Candidate One Contact');
+        insert new List<Account>{ source, candidate };
+
+        Contact sourceOne = new Contact(AccountId = source.Id, LastName = 'Same');
+        Contact sourceTwo = new Contact(AccountId = source.Id, LastName = 'Same');
+        Contact candidateOne = new Contact(AccountId = candidate.Id, LastName = 'Same');
+        Contact candidateOther = new Contact(AccountId = candidate.Id, LastName = 'Different');
+        insert new List<Contact>{ sourceOne, sourceTwo, candidateOne, candidateOther };
+
+        // Both source Contacts point at the same candidate Contact. The other candidate
+        // Contact has no match, so neither direction satisfies the full-household rule.
+        DHM_DuplicateRuleCandidateService.setTestCandidates(new Map<Id, Set<Id>>{
+            sourceOne.Id => new Set<Id>{ candidateOne.Id },
+            sourceTwo.Id => new Set<Id>{ candidateOne.Id },
+            candidateOne.Id => new Set<Id>{ sourceOne.Id, sourceTwo.Id },
+            candidateOther.Id => new Set<Id>()
+        });
+
+        Test.startTest();
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false);
+        Test.stopTest();
+
+        DHM_DuplicateRuleCandidateService.clearTestCandidates();
+
+        System.assertEquals(false, result.candidateFound);
+    }
 }

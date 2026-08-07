@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <name>DHM_Process_Duplicate_Contacts</name>
+        <label>DHM - Process Duplicate Contacts</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>DHM_DuplicateCheckBatchLauncher</actionName>
+        <actionType>apex</actionType>
+        <inputParameters>
+            <name>maxMerges</name>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>objectType</name>
+            <value>
+                <stringValue>Contact</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>performMerge</name>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </inputParameters>
+    </actionCalls>
+    <description>Runs the Data Health Management Contact merge process. Uses Salesforce Contact Duplicate Rules to identify duplicate Contacts, applies DHM business rules to ensure merges occur only within the same Account, and optionally merges eligible Contacts. Supports evaluation-only mode (performMerge = false) and Maximum Merges for controlled testing.</description>
+    <interviewLabel>DHM - Process Duplicate Contacts {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>DHM - Process Duplicate Contacts</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <startElementReference>DHM_Process_Duplicate_Contacts</startElementReference>
+    <status>Draft</status>
+</Flow>

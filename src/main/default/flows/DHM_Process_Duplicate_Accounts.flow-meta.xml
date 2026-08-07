@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <name>DHM_Process_Duplicate_Accounts</name>
+        <label>DHM - Process Duplicate Accounts</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>DHM_DuplicateCheckBatchLauncher</actionName>
+        <actionType>apex</actionType>
+        <inputParameters>
+            <name>maxMerges</name>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>objectType</name>
+            <value>
+                <stringValue>Account</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>performMerge</name>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </inputParameters>
+    </actionCalls>
+    <description>Runs the Data Health Management Account merge process. Uses Salesforce Contact Duplicate Rules to identify candidate household Accounts, applies DHM business rules and optional Contact exclusion criteria, and optionally merges eligible Accounts. Supports evaluation-only mode (performMerge = false) and Maximum Merges for controlled testing.</description>
+    <interviewLabel>DHM - Process Duplicate Accounts {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>DHM - Process Duplicate Accounts</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <startElementReference>DHM_Process_Duplicate_Accounts</startElementReference>
+    <status>Draft</status>
+</Flow>

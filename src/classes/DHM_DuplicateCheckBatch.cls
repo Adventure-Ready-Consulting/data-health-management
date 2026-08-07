@@ -4,7 +4,9 @@ Run From Debug Console
 Id jobId = DHM_DuplicateCheckBatch.startBatch(
     'Account',
     false,
-    'FirstName,LastName,Birthdate'
+    null,
+    'C501_Age_Calculate__c < 18',
+    1
 );
 System.debug('Batch Job Id = ' + jobId);
 */
@@ -12,7 +14,7 @@ System.debug('Batch Job Id = ' + jobId);
 public without sharing class DHM_DuplicateCheckBatch
     implements Database.Batchable<SObject>, Database.Stateful {
 
-    public static final Integer REQUIRED_BATCH_SIZE = 1;
+    public static final Integer REQUIRED_BATCH_SIZE = 50;
 
     public class BatchScopeException extends Exception {}
 
@@ -20,10 +22,13 @@ public without sharing class DHM_DuplicateCheckBatch
     private Boolean performMerge;
     private String matchFieldsCsv;
     private String contactExclusionCriteria;
+    private Integer maxMerges;
 
     private Integer processedCount = 0;
     private Integer updatedCount = 0;
     private Integer candidateSetCount = 0;
+    private Integer mergeCount = 0;
+    private Boolean mergeLimitReached = false;
     private Integer errorCount = 0;
 
     public DHM_DuplicateCheckBatch(
@@ -40,17 +45,29 @@ public without sharing class DHM_DuplicateCheckBatch
         String matchFieldsCsv,
         String contactExclusionCriteria
     ) {
+        this(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, null);
+    }
+
+    public DHM_DuplicateCheckBatch(
+        String objectType,
+        Boolean performMerge,
+        String matchFieldsCsv,
+        String contactExclusionCriteria,
+        Integer maxMerges
+    ) {
         this.objectType = objectType;
         this.performMerge = performMerge == null ? false : performMerge;
         this.matchFieldsCsv = matchFieldsCsv;
         this.contactExclusionCriteria = contactExclusionCriteria;
+        this.maxMerges = (maxMerges == null || maxMerges <= 0) ? null : maxMerges;
 
         DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
             '***** DHM_DuplicateCheckBatch::Constructor objectType=' + objectType +
             ', performMerge=' + String.valueOf(this.performMerge) +
             ', matchFieldsCsv=' + matchFieldsCsv +
-                ', contactExclusionCriteria=' + this.contactExclusionCriteria
+            ', contactExclusionCriteria=' + this.contactExclusionCriteria +
+            ', maxMerges=' + String.valueOf(this.maxMerges)
         );
     }
 
@@ -68,6 +85,16 @@ public without sharing class DHM_DuplicateCheckBatch
         String matchFieldsCsv,
         String contactExclusionCriteria
     ) {
+        return startBatch(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, null);
+    }
+
+    public static Id startBatch(
+        String objectType,
+        Boolean performMerge,
+        String matchFieldsCsv,
+        String contactExclusionCriteria,
+        Integer maxMerges
+    ) {
         Integer batchSizeToUse = Test.isRunningTest() ? 200 : REQUIRED_BATCH_SIZE;
 
         DHM_SharedCode.OutputDebugLogText(
@@ -75,8 +102,9 @@ public without sharing class DHM_DuplicateCheckBatch
             '***** DHM_DuplicateCheckBatch::startBatch objectType=' + objectType +
             ', performMerge=' + String.valueOf(performMerge == null ? false : performMerge) +
             ', matchFieldsCsv=' + matchFieldsCsv +
-                ', contactExclusionCriteria=' + contactExclusionCriteria +
-                ', batchSize=' + String.valueOf(batchSizeToUse)
+            ', contactExclusionCriteria=' + contactExclusionCriteria +
+            ', maxMerges=' + String.valueOf(maxMerges) +
+            ', batchSize=' + String.valueOf(batchSizeToUse)
         );
 
         return Database.executeBatch(
@@ -84,7 +112,8 @@ public without sharing class DHM_DuplicateCheckBatch
                 objectType,
                 performMerge,
                 matchFieldsCsv,
-                contactExclusionCriteria
+                contactExclusionCriteria,
+                maxMerges
             ),
             batchSizeToUse
         );
@@ -135,23 +164,13 @@ public without sharing class DHM_DuplicateCheckBatch
             return;
         }
 
-        if (!Test.isRunningTest() &&
-            (objectType == 'Contact' || objectType == 'Account') &&
-            actualScopeSize != REQUIRED_BATCH_SIZE) {
-
-            String msg =
-                'DHM_DuplicateCheckBatch must be launched with batch size ' +
-                String.valueOf(REQUIRED_BATCH_SIZE) +
-                ' for objectType=' + objectType +
-                '. Actual scopeSize=' + String.valueOf(actualScopeSize) +
-                '. Use DHM_DuplicateCheckBatch.startBatch(...) or the launcher class.';
-
+        if (hasReachedMergeLimit()) {
             DHM_SharedCode.OutputDebugLogText(
-                LoggingLevel.ERROR,
-                '***** DHM_DuplicateCheckBatch::execute INVALID_SCOPE ' + msg
+                LoggingLevel.DEBUG,
+                '***** DHM_DuplicateCheckBatch::execute merge limit already reached. Skipping remaining scope. maxMerges=' +
+                String.valueOf(maxMerges) + ', mergeCount=' + String.valueOf(mergeCount)
             );
-
-            throw new BatchScopeException(msg);
+            return;
         }
 
         if (objectType == 'Contact') {
@@ -214,6 +233,10 @@ public without sharing class DHM_DuplicateCheckBatch
         }
 
         for (SObject sob : scope) {
+            if (hasReachedMergeLimit()) {
+                break;
+            }
+
             Id contactId = (Id)sob.get('Id');
             Contact con = contactsById.get(contactId);
             processedCount++;
@@ -226,11 +249,6 @@ public without sharing class DHM_DuplicateCheckBatch
                     ''
                 );
 
-                Contact updateCon = new Contact(
-                    Id = contactId
-                );
-                DHM_SharedCode.ClearDuplicateCheckError(updateCon);
-                updates.add(updateCon);
                 continue;
             }
 
@@ -252,17 +270,18 @@ public without sharing class DHM_DuplicateCheckBatch
                     ' due to missing required match fields'
                 );
 
-                Contact updateCon = new Contact(
-                    Id = con.Id
-                );
-                DHM_SharedCode.ClearDuplicateCheckError(updateCon);
-                updates.add(updateCon);
+                if (con.Duplicate_Check_Error__c != null) {
+                    Contact updateCon = new Contact(Id = con.Id);
+                    DHM_SharedCode.ClearDuplicateCheckError(updateCon);
+                    updates.add(updateCon);
+                }
                 continue;
             }
 
             Contact updateCon = new Contact(
                 Id = con.Id
             );
+            Boolean updateNeeded = false;
 
             try {
                 DHM_SingleContactMerge.Result res =
@@ -272,12 +291,17 @@ public without sharing class DHM_DuplicateCheckBatch
                         matchFieldsCsv
                     );
 
-                DHM_SharedCode.ClearDuplicateCheckError(updateCon);
+                if (con.Duplicate_Check_Error__c != null) {
+                    DHM_SharedCode.ClearDuplicateCheckError(updateCon);
+                    updateNeeded = true;
+                }
 
                 if (res != null &&
                     res.candidateFound &&
                     res.masterContactId != null &&
                     res.duplicateContactId != null) {
+
+                    recordEligibleMerge(res.merged);
 
                     Id candidateId =
                         (res.masterContactId == con.Id)
@@ -286,9 +310,10 @@ public without sharing class DHM_DuplicateCheckBatch
 
                     if (candidateId != null &&
                         candidateId != con.Id &&
-                        updateCon.Duplicate_Check_Candidate__c != candidateId) {
+                        con.Duplicate_Check_Candidate__c != candidateId) {
 
                         updateCon.Duplicate_Check_Candidate__c = candidateId;
+                        updateNeeded = true;
                         candidateSetCount++;
 
                         DHM_SharedCode.OutputDebugLogText(
@@ -307,9 +332,12 @@ public without sharing class DHM_DuplicateCheckBatch
                     String.valueOf(con.Id) +
                     ' Exception: ' + String.valueOf(e.getMessage())
                 );
+                updateNeeded = true;
             }
 
-            updates.add(updateCon);
+            if (updateNeeded) {
+                updates.add(updateCon);
+            }
         }
 
         saveContactUpdates(updates);
@@ -385,6 +413,10 @@ public without sharing class DHM_DuplicateCheckBatch
         }
 
         for (SObject sob : scope) {
+            if (hasReachedMergeLimit()) {
+                break;
+            }
+
             Id accountId = (Id)sob.get('Id');
             Account acc = accountsById.get(accountId);
             processedCount++;
@@ -397,11 +429,6 @@ public without sharing class DHM_DuplicateCheckBatch
                     ''
                 );
 
-                Account updateAcc = new Account(
-                    Id = accountId
-                );
-                DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
-                updates.add(updateAcc);
                 continue;
             }
 
@@ -424,17 +451,18 @@ public without sharing class DHM_DuplicateCheckBatch
                     ' due to no related Contacts with all required match fields populated'
                 );
 
-                Account updateAcc = new Account(
-                    Id = acc.Id
-                );
-                DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
-                updates.add(updateAcc);
+                if (acc.Duplicate_Check_Error__c != null) {
+                    Account updateAcc = new Account(Id = acc.Id);
+                    DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
+                    updates.add(updateAcc);
+                }
                 continue;
             }
 
             Account updateAcc = new Account(
                 Id = acc.Id
             );
+            Boolean updateNeeded = false;
 
             try {
                 DHM_SingleAccountMerge.Result res =
@@ -445,12 +473,17 @@ public without sharing class DHM_DuplicateCheckBatch
                         contactExclusionCriteria
                     );
 
-                DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
+                if (acc.Duplicate_Check_Error__c != null) {
+                    DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
+                    updateNeeded = true;
+                }
 
                 if (res != null &&
                     res.candidateFound &&
                     res.masterAccountId != null &&
                     res.duplicateAccountId != null) {
+
+                    recordEligibleMerge(res.merged);
 
                     Id candidateId =
                         (res.masterAccountId == acc.Id)
@@ -459,9 +492,10 @@ public without sharing class DHM_DuplicateCheckBatch
 
                     if (candidateId != null &&
                         candidateId != acc.Id &&
-                        updateAcc.Duplicate_Check_Candidate__c != candidateId) {
+                        acc.Duplicate_Check_Candidate__c != candidateId) {
 
                         updateAcc.Duplicate_Check_Candidate__c = candidateId;
+                        updateNeeded = true;
                         candidateSetCount++;
 
                         DHM_SharedCode.OutputDebugLogText(
@@ -480,9 +514,12 @@ public without sharing class DHM_DuplicateCheckBatch
                     String.valueOf(acc.Id) +
                     ' Exception: ' + String.valueOf(e.getMessage())
                 );
+                updateNeeded = true;
             }
 
-            updates.add(updateAcc);
+            if (updateNeeded) {
+                updates.add(updateAcc);
+            }
         }
 
         saveAccountUpdates(updates);
@@ -587,6 +624,28 @@ public without sharing class DHM_DuplicateCheckBatch
         return true;
     }
 
+    private Boolean hasReachedMergeLimit() {
+        return maxMerges != null && mergeCount >= maxMerges;
+    }
+
+    private void recordEligibleMerge(Boolean merged) {
+        // In evaluation-only mode, a candidateFound result is a merge that would occur.
+        // In merge mode, only count a merge after the service reports it completed.
+        if (performMerge && merged != true) {
+            return;
+        }
+
+        mergeCount++;
+        mergeLimitReached = hasReachedMergeLimit();
+
+        DHM_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** DHM_DuplicateCheckBatch::recordEligibleMerge mergeCount=' +
+            String.valueOf(mergeCount) + ', maxMerges=' + String.valueOf(maxMerges) +
+            ', mergeLimitReached=' + String.valueOf(mergeLimitReached)
+        );
+    }
+
     public void finish(Database.BatchableContext bc) {
         DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
@@ -595,6 +654,9 @@ public without sharing class DHM_DuplicateCheckBatch
             ', processedCount=' + String.valueOf(processedCount) +
             ', updatedCount=' + String.valueOf(updatedCount) +
             ', candidateSetCount=' + String.valueOf(candidateSetCount) +
+            ', mergeCount=' + String.valueOf(mergeCount) +
+            ', maxMerges=' + String.valueOf(maxMerges) +
+            ', mergeLimitReached=' + String.valueOf(mergeLimitReached) +
             ', errorCount=' + String.valueOf(errorCount)
         );
     }
