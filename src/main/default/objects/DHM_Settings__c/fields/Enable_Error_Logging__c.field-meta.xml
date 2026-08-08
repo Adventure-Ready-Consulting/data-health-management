@@ -3,7 +3,6 @@
     <fullName>Enable_Error_Logging__c</fullName>
     <defaultValue>false</defaultValue>
     <description>Enable Error Logging to write error level messages to the log table</description>
-    <externalId>false</externalId>
     <inlineHelpText>Enable Error Logging to write error level messages to the log table</inlineHelpText>
     <label>Enable Error Logging</label>
     <trackTrending>false</trackTrending>

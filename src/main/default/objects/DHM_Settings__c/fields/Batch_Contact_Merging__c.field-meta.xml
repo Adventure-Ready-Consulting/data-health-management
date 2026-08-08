@@ -3,7 +3,6 @@
     <fullName>Batch_Contact_Merging__c</fullName>
     <defaultValue>false</defaultValue>
     <description>Batch Contact merging for faster merging of contact records.  Uncheck this option if contacts are not merging or errors in the contact merging process.</description>
-    <externalId>false</externalId>
     <inlineHelpText>Batch Contact merging for faster merging of contact records.  Uncheck this option if contacts are not merging or errors in the contact merging process.</inlineHelpText>
     <label>Batch Contact Merging</label>
     <trackTrending>false</trackTrending>

@@ -4,7 +4,7 @@ project:
     name: Data-Health_Management
     package:
         name: Data Health Management
-        api_version: '64.0'
+        api_version: '67.0'
 
 orgs:
     scratch:

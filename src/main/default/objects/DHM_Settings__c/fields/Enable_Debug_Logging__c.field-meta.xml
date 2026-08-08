@@ -3,7 +3,6 @@
     <fullName>Enable_Debug_Logging__c</fullName>
     <defaultValue>false</defaultValue>
     <description>Enable Debug Logging to write debug level messages to the log table</description>
-    <externalId>false</externalId>
     <inlineHelpText>Enable Debug Logging to write debug level messages to the log table</inlineHelpText>
     <label>Enable Debug Logging</label>
     <trackTrending>false</trackTrending>

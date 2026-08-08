@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <actionCalls>
-        <name>DHM_Process_Duplicate_Accounts</name>
-        <label>DHM - Process Duplicate Accounts</label>
+        <name>DHM_Account_Duplicate_Processing</name>
+        <label>DHM - Account Duplicate Processing</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
         <actionName>DHM_DuplicateCheckBatchLauncher</actionName>
         <actionType>apex</actionType>
+        <flowTransactionModel>Automatic</flowTransactionModel>
         <inputParameters>
             <name>additionalMatchFieldsCsv</name>
             <value>
@@ -14,10 +15,13 @@
             </value>
         </inputParameters>
         <inputParameters>
-            <name>maxMerges</name>
+            <name>contactExclusionCriteria</name>
             <value>
-                <numberValue>1.0</numberValue>
+                <stringValue>C501_Age_Calculate__c &lt; 18</stringValue>
             </value>
+        </inputParameters>
+        <inputParameters>
+            <name>maxMerges</name>
         </inputParameters>
         <inputParameters>
             <name>objectType</name>
@@ -28,13 +32,24 @@
         <inputParameters>
             <name>performMerge</name>
             <value>
-                <booleanValue>false</booleanValue>
+                <booleanValue>true</booleanValue>
             </value>
         </inputParameters>
+        <inputParameters>
+            <name>recordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputParameters>
+        <nameSegment>DHM_DuplicateCheckBatchLauncher</nameSegment>
+        <offset>0</offset>
     </actionCalls>
+    <apiVersion>67.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
     <description>Runs the Data Health Management Account merge process. Uses Salesforce Contact Duplicate Rules to identify candidate household Accounts, applies DHM business rules and optional Contact exclusion criteria, and optionally merges eligible Accounts. Supports evaluation-only mode (performMerge = false) and Maximum Merges for controlled testing.</description>
-    <interviewLabel>DHM - Process Duplicate Accounts {!$Flow.CurrentDateTime}</interviewLabel>
-    <label>DHM - Process Duplicate Accounts</label>
+    <environments>Default</environments>
+    <interviewLabel>DHM - Account Duplicate Processing {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>DHM - Account Duplicate Processing</label>
     <processMetadataValues>
         <name>BuilderType</name>
         <value>
@@ -54,6 +69,21 @@
         </value>
     </processMetadataValues>
     <processType>AutoLaunchedFlow</processType>
-    <startElementReference>DHM_Process_Duplicate_Accounts</startElementReference>
-    <status>Draft</status>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>DHM_Account_Duplicate_Processing</targetReference>
+        </connector>
+        <object>Account</object>
+        <schedule>
+            <dayOfMonthToRun>0</dayOfMonthToRun>
+            <frequency>Daily</frequency>
+            <frequencyNumber>0</frequencyNumber>
+            <startDate>2026-08-01</startDate>
+            <startTime>04:00:00.000Z</startTime>
+        </schedule>
+        <triggerType>Scheduled</triggerType>
+    </start>
+    <status>Active</status>
 </Flow>

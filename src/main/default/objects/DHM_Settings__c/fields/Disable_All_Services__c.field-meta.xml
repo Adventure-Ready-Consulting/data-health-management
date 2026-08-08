@@ -3,7 +3,6 @@
     <fullName>Disable_All_Services__c</fullName>
     <defaultValue>false</defaultValue>
     <description>Disable All Services when checked will disable discovery and merging.  Typically only used for debugging deployments.</description>
-    <externalId>false</externalId>
     <inlineHelpText>Disable All Services when checked will disable discovery and merging.  Typically only used for debugging deployments.</inlineHelpText>
     <label>Disable All Services</label>
     <trackTrending>false</trackTrending>
