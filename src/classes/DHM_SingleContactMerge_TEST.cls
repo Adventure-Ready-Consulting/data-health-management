@@ -54,7 +54,8 @@ private class DHM_SingleContactMerge_TEST {
         DHM_SingleContactMerge.Result result =
             DHM_SingleContactMergeService.evaluateAndMerge(
                 c1.Id,
-                false
+                false,
+                'Birthdate'
             );
 
         System.assertNotEquals(null, result);
@@ -81,7 +82,8 @@ private class DHM_SingleContactMerge_TEST {
         DHM_SingleContactMerge.Result result =
             DHM_SingleContactMergeService.evaluateAndMerge(
                 c1.Id,
-                false
+                false,
+                'Birthdate'
             );
 
         System.assertNotEquals(null, result);
@@ -186,10 +188,9 @@ private class DHM_SingleContactMerge_TEST {
         System.assertEquals('Birthdate', parsed[2]);
 
         List<String> parsedDefault = DHM_SingleContactMergeService.parseMatchFields(null);
-        System.assertEquals(3, parsedDefault.size());
+        System.assertEquals(2, parsedDefault.size());
         System.assertEquals('FirstName', parsedDefault[0]);
         System.assertEquals('LastName', parsedDefault[1]);
-        System.assertEquals('Birthdate', parsedDefault[2]);
 
         String key = DHM_SingleContactMergeService.buildMatchKey(
             ' John ',

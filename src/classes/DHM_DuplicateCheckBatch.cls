@@ -22,7 +22,7 @@ public without sharing class DHM_DuplicateCheckBatch
     private String objectType;
     private Boolean performMerge;
     // Legacy internal name retained for compatibility. In Version 2.0 production paths,
-    // this contains Flow input additionalMatchFieldsCsv (for example, Birthdate).
+    // this contains the Flow input additionalMatchFieldsCsv.
     private String matchFieldsCsv;
     private String contactExclusionCriteria;
     private Integer maxMerges;
@@ -293,9 +293,7 @@ public without sharing class DHM_DuplicateCheckBatch
                 String.valueOf(con.Duplicate_Check_Candidate__c)
             );
 
-            if (Test.isRunningTest() &&
-                !DHM_DuplicateRuleCandidateService.hasTestCandidates() &&
-                !recordHasRequiredMatchFields(con, matchFields)) {
+            if (!recordHasRequiredMatchFields(con, matchFields)) {
                 DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** DHM_DuplicateCheckBatch::processContacts skipping Contact Id=' +
@@ -502,9 +500,7 @@ public without sharing class DHM_DuplicateCheckBatch
             );
 
             List<Contact> accountContacts = contactsByAccountId.get(acc.Id);
-            if (Test.isRunningTest() &&
-                !DHM_DuplicateRuleCandidateService.hasTestCandidates() &&
-                !accountHasAnyMatchableContact(accountContacts, matchFields)) {
+            if (!accountHasAnyMatchableContact(accountContacts, matchFields)) {
                 DHM_SharedCode.OutputDebugLogText(
                     LoggingLevel.DEBUG,
                     '***** DHM_DuplicateCheckBatch::processAccounts skipping Account Id=' +
@@ -700,16 +696,35 @@ public without sharing class DHM_DuplicateCheckBatch
             return false;
         }
 
+        Map<String, Schema.SObjectField> fieldMap =
+            recordToCheck.getSObjectType().getDescribe().fields.getMap();
+
+        if (!fieldMap.containsKey(fieldName)) {
+            return false;
+        }
+
+        Schema.DisplayType fieldType =
+            fieldMap.get(fieldName).getDescribe().getType();
+
         Object fieldValue = recordToCheck.get(fieldName);
 
         if (fieldValue == null) {
             return false;
         }
 
-        if (fieldValue instanceof String) {
-            return !String.isBlank((String)fieldValue);
+        if (
+            fieldType == Schema.DisplayType.String ||
+            fieldType == Schema.DisplayType.TextArea ||
+            fieldType == Schema.DisplayType.Email ||
+            fieldType == Schema.DisplayType.Phone ||
+            fieldType == Schema.DisplayType.Url ||
+            fieldType == Schema.DisplayType.EncryptedString
+        ) {
+            return !String.isBlank(String.valueOf(fieldValue));
         }
 
+        // Date, DateTime, Time, Boolean, numeric, Id/reference, picklist,
+        // and other typed values are populated when non-null.
         return true;
     }
 

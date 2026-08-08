@@ -136,4 +136,63 @@ private class DHM_DuplicateRuleCandidateService_TEST {
         System.assertEquals(true, threwExpectedError);
     }
 
+
+
+    @IsTest
+    static void testGenericRequiredAdditionalFieldPopulationByType() {
+        Contact c = new Contact(
+            LastName = 'Generic',
+            Birthdate = Date.newInstance(1972, 1, 1),
+            Email = 'person@example.org'
+        );
+
+        System.assertEquals(
+            true,
+            DHM_DuplicateRuleCandidateService.hasAllRequiredAdditionalMatchFieldValues(
+                c,
+                'Birthdate'
+            ),
+            'A populated Date field should satisfy required additional-field validation.'
+        );
+
+        c.Birthdate = null;
+        System.assertEquals(
+            false,
+            DHM_DuplicateRuleCandidateService.hasAllRequiredAdditionalMatchFieldValues(
+                c,
+                'Birthdate'
+            ),
+            'A null Date field should fail required additional-field validation.'
+        );
+
+        c.Email = '   ';
+        System.assertEquals(
+            false,
+            DHM_DuplicateRuleCandidateService.hasAllRequiredAdditionalMatchFieldValues(
+                c,
+                'Email'
+            ),
+            'A blank text-like field should fail required additional-field validation.'
+        );
+
+        c.Email = 'person@example.org';
+        System.assertEquals(
+            true,
+            DHM_DuplicateRuleCandidateService.hasAllRequiredAdditionalMatchFieldValues(
+                c,
+                'Email'
+            ),
+            'A nonblank text-like field should satisfy required additional-field validation.'
+        );
+
+        System.assertEquals(
+            true,
+            DHM_DuplicateRuleCandidateService.hasAllRequiredAdditionalMatchFieldValues(
+                c,
+                null
+            ),
+            'No configured additional fields means there is no additional required-field gate.'
+        );
+    }
+
 }

@@ -253,4 +253,58 @@ public without sharing class DHM_DuplicateRuleCandidateService {
     public static Boolean hasTestCandidates() {
         return testCandidatesBySourceId != null;
     }
+
+
+    public static Boolean hasAllRequiredAdditionalMatchFieldValues(
+        Contact contactRecord,
+        String additionalMatchFieldsCsv
+    ) {
+        List<String> fieldNames = parseAndValidateContactFields(additionalMatchFieldsCsv);
+
+        if (fieldNames.isEmpty()) {
+            return true;
+        }
+
+        Map<String, Schema.SObjectField> contactFields =
+            Schema.SObjectType.Contact.fields.getMap();
+
+        for (String fieldName : fieldNames) {
+            Schema.DescribeFieldResult describeResult =
+                contactFields.get(fieldName).getDescribe();
+
+            Object value = contactRecord.get(fieldName);
+
+            if (!isPopulatedForAdditionalMatch(value, describeResult.getType())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static Boolean isPopulatedForAdditionalMatch(
+        Object value,
+        Schema.DisplayType fieldType
+    ) {
+        if (value == null) {
+            return false;
+        }
+
+        // Text-like fields must contain at least one non-whitespace character.
+        if (
+            fieldType == Schema.DisplayType.String ||
+            fieldType == Schema.DisplayType.TextArea ||
+            fieldType == Schema.DisplayType.Email ||
+            fieldType == Schema.DisplayType.Phone ||
+            fieldType == Schema.DisplayType.Url ||
+            fieldType == Schema.DisplayType.EncryptedString
+        ) {
+            return !String.isBlank(String.valueOf(value));
+        }
+
+        // Date, DateTime, Time, Boolean, numeric, Id/reference, picklist, and
+        // other strongly typed field values are considered populated when non-null.
+        return true;
+    }
+
 }

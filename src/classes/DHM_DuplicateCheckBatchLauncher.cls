@@ -17,7 +17,7 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
 
         @InvocableVariable(
             label='Contact Additional Match Fields'
-            description='Optional comma-separated Contact field API names that DHM must match exactly after Salesforce Duplicate Rules return candidates. All configured fields must be populated and equal on both Contacts. Example: Birthdate'
+            description='Optional comma-separated Contact field API names that DHM must match exactly after Salesforce Duplicate Rules return candidates. All configured fields must be populated and equal on both Contacts. Example: Custom_Date_Field__c'
         )
         public String additionalMatchFieldsCsv;
 

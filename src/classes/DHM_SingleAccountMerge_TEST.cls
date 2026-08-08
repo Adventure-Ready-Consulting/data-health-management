@@ -38,7 +38,8 @@ private class DHM_SingleAccountMerge_TEST {
         DHM_SingleAccountMerge.Result result =
             DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
-                false
+                false,
+                'Birthdate'
             );
         Test.stopTest();
 
@@ -74,7 +75,8 @@ private class DHM_SingleAccountMerge_TEST {
         DHM_SingleAccountMerge.Result result =
             DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
-                false
+                false,
+                'Birthdate'
             );
 
         System.assertNotEquals(null, result);
@@ -125,7 +127,8 @@ private class DHM_SingleAccountMerge_TEST {
         DHM_SingleAccountMerge.Result result =
             DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
-                false
+                false,
+                'Birthdate'
             );
 
         System.assertEquals(false, result.candidateFound);
@@ -175,10 +178,14 @@ private class DHM_SingleAccountMerge_TEST {
         System.assertEquals('Birthdate', parsed[2]);
 
         List<String> parsedBlank = DHM_SingleAccountMergeService.parseMatchFields(null);
-        System.assertEquals(3, parsedBlank.size());
+        System.assertEquals(2, parsedBlank.size());
+        System.assertEquals('FirstName', parsedBlank[0]);
+        System.assertEquals('LastName', parsedBlank[1]);
 
         List<String> parsedEmpty = DHM_SingleAccountMergeService.parseMatchFields('');
-        System.assertEquals(3, parsedEmpty.size());
+        System.assertEquals(2, parsedEmpty.size());
+        System.assertEquals('FirstName', parsedEmpty[0]);
+        System.assertEquals('LastName', parsedEmpty[1]);
     }
 
     @IsTest

@@ -1,7 +1,7 @@
 public without sharing class DHM_SingleContactMergeService {
 
     public static final String DEFAULT_MATCH_FIELDS_CSV = '';
-    private static final String LEGACY_DEFAULT_MATCH_FIELDS_CSV = 'FirstName,LastName,Birthdate';
+    private static final String LEGACY_DEFAULT_MATCH_FIELDS_CSV = 'FirstName,LastName';
 
     public class MatchBundle {
         public Id accountId;
