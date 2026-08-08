@@ -303,9 +303,27 @@ public without sharing class DHM_DuplicateCheckBatch
                     ' due to missing required match fields'
                 );
 
+                Contact updateCon = new Contact(Id = con.Id);
+                Boolean updateNeeded = false;
+
                 if (con.Duplicate_Check_Error__c != null) {
-                    Contact updateCon = new Contact(Id = con.Id);
                     DHM_SharedCode.ClearDuplicateCheckError(updateCon);
+                    updateNeeded = true;
+                }
+
+                if (con.Duplicate_Check_Candidate__c != null) {
+                    updateCon.Duplicate_Check_Candidate__c = null;
+                    updateNeeded = true;
+
+                    DHM_SharedCode.OutputDebugLogText(
+                        LoggingLevel.DEBUG,
+                        '***** DHM_DuplicateCheckBatch::processContacts clearing stale Duplicate_Check_Candidate__c for Contact Id=' +
+                        String.valueOf(con.Id) +
+                        ' because required additional match fields are not populated'
+                    );
+                }
+
+                if (updateNeeded) {
                     updates.add(updateCon);
                 }
                 continue;
@@ -356,6 +374,16 @@ public without sharing class DHM_DuplicateCheckBatch
                             ' to candidateId=' + String.valueOf(candidateId)
                         );
                     }
+                } else if (con.Duplicate_Check_Candidate__c != null) {
+                    updateCon.Duplicate_Check_Candidate__c = null;
+                    updateNeeded = true;
+
+                    DHM_SharedCode.OutputDebugLogText(
+                        LoggingLevel.DEBUG,
+                        '***** DHM_DuplicateCheckBatch::processContacts clearing stale Duplicate_Check_Candidate__c for Contact Id=' +
+                        String.valueOf(con.Id) +
+                        ' because the current evaluation found no eligible candidate'
+                    );
                 }
             } catch (Exception e) {
                 errorCount++;
@@ -484,9 +512,27 @@ public without sharing class DHM_DuplicateCheckBatch
                     ' due to no related Contacts with all required match fields populated'
                 );
 
+                Account updateAcc = new Account(Id = acc.Id);
+                Boolean updateNeeded = false;
+
                 if (acc.Duplicate_Check_Error__c != null) {
-                    Account updateAcc = new Account(Id = acc.Id);
                     DHM_SharedCode.ClearDuplicateCheckError(updateAcc);
+                    updateNeeded = true;
+                }
+
+                if (acc.Duplicate_Check_Candidate__c != null) {
+                    updateAcc.Duplicate_Check_Candidate__c = null;
+                    updateNeeded = true;
+
+                    DHM_SharedCode.OutputDebugLogText(
+                        LoggingLevel.DEBUG,
+                        '***** DHM_DuplicateCheckBatch::processAccounts clearing stale Duplicate_Check_Candidate__c for Account Id=' +
+                        String.valueOf(acc.Id) +
+                        ' because no related Contact has all required additional match fields populated'
+                    );
+                }
+
+                if (updateNeeded) {
                     updates.add(updateAcc);
                 }
                 continue;
@@ -538,6 +584,16 @@ public without sharing class DHM_DuplicateCheckBatch
                             ' to candidateId=' + String.valueOf(candidateId)
                         );
                     }
+                } else if (acc.Duplicate_Check_Candidate__c != null) {
+                    updateAcc.Duplicate_Check_Candidate__c = null;
+                    updateNeeded = true;
+
+                    DHM_SharedCode.OutputDebugLogText(
+                        LoggingLevel.DEBUG,
+                        '***** DHM_DuplicateCheckBatch::processAccounts clearing stale Duplicate_Check_Candidate__c for Account Id=' +
+                        String.valueOf(acc.Id) +
+                        ' because the current evaluation found no eligible candidate'
+                    );
                 }
             } catch (Exception e) {
                 errorCount++;

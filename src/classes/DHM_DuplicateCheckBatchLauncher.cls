@@ -10,7 +10,7 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
         public Boolean performMerge;
 
         @InvocableVariable(
-            label='Additional Match Fields'
+            label='Contact Additional Match Fields'
             description='Optional comma-separated Contact field API names that DHM must match exactly after Salesforce Duplicate Rules return candidates. All configured fields must be populated and equal on both Contacts. Example: Birthdate'
         )
         public String additionalMatchFieldsCsv;
@@ -141,6 +141,15 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                 }
             }
 
+            System.debug(LoggingLevel.ERROR,
+                '***** DHM LAUNCHER ENTER ***** ' +
+                'objectType=' + req.objectType +
+                ', recordId=' + String.valueOf(req.recordId) +
+                ', maxMerges=' + String.valueOf(req.maxMerges) +
+                ', performMerge=' + String.valueOf(req.performMerge) +
+                ', additionalMatchFields=' + req.additionalMatchFieldsCsv +
+                ', contactExclusionCriteria=' + req.contactExclusionCriteria
+            );
             Id batchJobId = Database.executeBatch(
                 new DHM_DuplicateCheckBatch(
                     req.objectType,
@@ -151,6 +160,9 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                     req.recordId
                 ),
                 scopeSize
+            );
+            System.debug(LoggingLevel.ERROR,
+                '***** DHM BATCH QUEUED ***** JobId=' + batchJobId
             );
 
             DHM_SharedCode.OutputDebugLogText(

@@ -417,4 +417,115 @@ private class DHM_DuplicateCheckBatch_TEST {
             'maxMerges=1 should stop evaluation after the first eligible merge is discovered.'
         );
     }
+
+
+    @IsTest
+    static void testBatchAccountClearsStaleCandidateWhenAdditionalFieldMismatch() {
+        Account sourceAcct = new Account(Name = 'Stale Account Source');
+        Account targetAcct = new Account(Name = 'Stale Account Target');
+        insert new List<Account>{ sourceAcct, targetAcct };
+
+        Contact sourceCon = new Contact(
+            AccountId = sourceAcct.Id,
+            FirstName = 'David',
+            LastName = 'Boyce',
+            Birthdate = Date.newInstance(1972, 1, 1)
+        );
+        Contact targetCon = new Contact(
+            AccountId = targetAcct.Id,
+            FirstName = 'David',
+            LastName = 'Boyce',
+            Birthdate = Date.newInstance(1973, 1, 1)
+        );
+        insert new List<Contact>{ sourceCon, targetCon };
+
+        sourceAcct.Duplicate_Check_Candidate__c = targetAcct.Id;
+        update sourceAcct;
+
+        DHM_DuplicateRuleCandidateService.setTestCandidates(
+            new Map<Id, Set<Id>>{
+                sourceCon.Id => new Set<Id>{ targetCon.Id }
+            }
+        );
+
+        Test.startTest();
+        DHM_DuplicateCheckBatch.startBatch(
+            'Account',
+            false,
+            'Birthdate',
+            null,
+            1,
+            sourceAcct.Id
+        );
+        Test.stopTest();
+
+        Account refreshed = [
+            SELECT Duplicate_Check_Candidate__c
+            FROM Account
+            WHERE Id = :sourceAcct.Id
+        ];
+
+        System.assertEquals(
+            null,
+            refreshed.Duplicate_Check_Candidate__c,
+            'A stale Account candidate must be cleared when the current additional-field validation rejects the candidate.'
+        );
+
+        DHM_DuplicateRuleCandidateService.clearTestCandidates();
+    }
+
+    @IsTest
+    static void testBatchContactClearsStaleCandidateWhenAdditionalFieldMismatch() {
+        Account acct = new Account(Name = 'Stale Contact Household');
+        insert acct;
+
+        Contact sourceCon = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'David',
+            LastName = 'Boyce',
+            Birthdate = Date.newInstance(1972, 1, 1)
+        );
+        Contact targetCon = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'David',
+            LastName = 'Boyce',
+            Birthdate = Date.newInstance(1973, 1, 1)
+        );
+        insert new List<Contact>{ sourceCon, targetCon };
+
+        sourceCon.Duplicate_Check_Candidate__c = targetCon.Id;
+        update sourceCon;
+
+        DHM_DuplicateRuleCandidateService.setTestCandidates(
+            new Map<Id, Set<Id>>{
+                sourceCon.Id => new Set<Id>{ targetCon.Id }
+            }
+        );
+
+        Test.startTest();
+        DHM_DuplicateCheckBatch.startBatch(
+            'Contact',
+            false,
+            'Birthdate',
+            null,
+            1,
+            sourceCon.Id
+        );
+        Test.stopTest();
+
+        Contact refreshed = [
+            SELECT Duplicate_Check_Candidate__c
+            FROM Contact
+            WHERE Id = :sourceCon.Id
+        ];
+
+        System.assertEquals(
+            null,
+            refreshed.Duplicate_Check_Candidate__c,
+            'A stale Contact candidate must be cleared when the current additional-field validation rejects the candidate.'
+        );
+
+        DHM_DuplicateRuleCandidateService.clearTestCandidates();
+    }
+
 }
