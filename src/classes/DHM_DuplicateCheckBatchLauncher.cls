@@ -3,10 +3,16 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
     public static final Integer DEFAULT_BATCH_SIZE = 50;
 
     public class Request {
-        @InvocableVariable(required=true)
+        @InvocableVariable(label='Source Object Type' required=true)
         public String objectType;
 
-        @InvocableVariable
+        @InvocableVariable(
+            label='Source Record Id'
+            description='Optional source Account or Contact Id. When supplied, DHM evaluates only this source record while duplicate candidates can still be found anywhere in Salesforce. Leave blank for a full production scan.'
+        )
+        public Id recordId;
+
+        @InvocableVariable(label='Perform Merge')
         public Boolean performMerge;
 
         @InvocableVariable(
@@ -26,12 +32,6 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
             description='Optional testing limit. When greater than 0, DHM stops evaluating new records after this many eligible merges are discovered (performMerge=false) or completed (performMerge=true). Leave blank or set to 0 for no limit.'
         )
         public Integer maxMerges;
-
-        @InvocableVariable(
-            label='Source Record Id'
-            description='Optional source Account or Contact Id. When supplied, DHM evaluates only this source record while duplicate candidates can still be found anywhere in Salesforce. Leave blank for a full production scan.'
-        )
-        public Id recordId;
     }
 
     public class Result {
