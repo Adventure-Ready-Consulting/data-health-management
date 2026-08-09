@@ -1,6 +1,9 @@
 public with sharing class DHM_DuplicateCheckBatchLauncher {
 
-    public static final Integer DEFAULT_BATCH_SIZE = 50;
+    public static final Integer ACCOUNT_BATCH_SIZE = 10;
+    public static final Integer CONTACT_BATCH_SIZE = 50;
+    // Backward-compatible alias used by older tests/integrations.
+    public static final Integer DEFAULT_BATCH_SIZE = CONTACT_BATCH_SIZE;
 
     @TestVisible
     private static Boolean forceActiveDhmBatchJobForTest = false;
@@ -100,7 +103,7 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
         for (Request req : requests) {
             reqIndex++;
 
-            Integer scopeSize = DEFAULT_BATCH_SIZE;
+            Integer scopeSize = req.objectType == 'Account' ? ACCOUNT_BATCH_SIZE : CONTACT_BATCH_SIZE;
 
             DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,

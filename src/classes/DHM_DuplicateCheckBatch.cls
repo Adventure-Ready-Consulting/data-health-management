@@ -15,7 +15,9 @@ System.debug('Batch Job Id = ' + jobId);
 public without sharing class DHM_DuplicateCheckBatch
     implements Database.Batchable<SObject>, Database.Stateful {
 
-    public static final Integer REQUIRED_BATCH_SIZE = 50;
+    public static final Integer ACCOUNT_BATCH_SIZE = 10;
+    public static final Integer CONTACT_BATCH_SIZE = 50;
+    public static final Integer REQUIRED_BATCH_SIZE = CONTACT_BATCH_SIZE;
 
     public class BatchScopeException extends Exception {}
 
@@ -123,7 +125,9 @@ public without sharing class DHM_DuplicateCheckBatch
         Integer maxMerges,
         Id sourceRecordId
     ) {
-        Integer batchSizeToUse = Test.isRunningTest() ? 200 : REQUIRED_BATCH_SIZE;
+        Integer batchSizeToUse = Test.isRunningTest()
+            ? 200
+            : (objectType == 'Account' ? ACCOUNT_BATCH_SIZE : CONTACT_BATCH_SIZE);
 
         DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
@@ -172,6 +176,14 @@ public without sharing class DHM_DuplicateCheckBatch
             ', objectType=' + objectType +
             ', sourceRecordId=' + String.valueOf(sourceRecordId) +
             ', soql=' + soql
+        );
+
+        DHM_JobLogService.createStartedLog(
+            bc.getJobId(),
+            objectType,
+            performMerge,
+            maxMerges,
+            objectType == 'Account' ? ACCOUNT_BATCH_SIZE : CONTACT_BATCH_SIZE
         );
 
         return Database.getQueryLocator(soql);
@@ -750,6 +762,15 @@ public without sharing class DHM_DuplicateCheckBatch
             ', maxMerges=' + String.valueOf(maxMerges)
         );
 
+        DHM_JobLogService.markStoppedForMergeLimit(
+            jobId,
+            processedCount,
+            updatedCount,
+            candidateSetCount,
+            mergeCount,
+            errorCount
+        );
+
         // Do not abort Salesforce's asynchronous unit-test harness. The existing maxMerges
         // tests still exercise the decision path, while production stops future scopes here.
         if (!Test.isRunningTest()) {
@@ -791,6 +812,15 @@ public without sharing class DHM_DuplicateCheckBatch
             ', maxMerges=' + String.valueOf(maxMerges) +
             ', mergeLimitReached=' + String.valueOf(mergeLimitReached) +
             ', errorCount=' + String.valueOf(errorCount)
+        );
+
+        DHM_JobLogService.completeFromAsyncApexJob(
+            bc.getJobId(),
+            processedCount,
+            updatedCount,
+            candidateSetCount,
+            mergeCount,
+            errorCount
         );
     }
 }

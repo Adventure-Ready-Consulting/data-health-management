@@ -21,6 +21,8 @@
         <members>DHM_AccountDuplicateScheduler</members>
         <members>DHM_ContactDuplicateScheduler</members>
         <members>DHM_DuplicateManagementScheduler_TEST</members>
+        <members>DHM_JobLogService</members>
+        <members>DHM_JobLogService_TEST</members>
         <name>ApexClass</name>
     </types>
     <types>
@@ -43,12 +45,32 @@
         <members>DHM_Settings__c.Enable_Error_Logging__c</members>
         <members>DHM_Settings__c.Log_Filter__c</members>
         <members>DHM_Settings__c.Merge_History_Write_All__c</members>
+        <members>DHM_Job_Log__c.Batch_Job_Id__c</members>
+        <members>DHM_Job_Log__c.Process__c</members>
+        <members>DHM_Job_Log__c.Source_Object_Type__c</members>
+        <members>DHM_Job_Log__c.Status__c</members>
+        <members>DHM_Job_Log__c.Apex_Job_Status__c</members>
+        <members>DHM_Job_Log__c.Started__c</members>
+        <members>DHM_Job_Log__c.Completed__c</members>
+        <members>DHM_Job_Log__c.Perform_Merge__c</members>
+        <members>DHM_Job_Log__c.Max_Merges__c</members>
+        <members>DHM_Job_Log__c.Scope_Size__c</members>
+        <members>DHM_Job_Log__c.Records_Processed__c</members>
+        <members>DHM_Job_Log__c.Records_Updated__c</members>
+        <members>DHM_Job_Log__c.Candidates_Found__c</members>
+        <members>DHM_Job_Log__c.Merges__c</members>
+        <members>DHM_Job_Log__c.Error_Count__c</members>
+        <members>DHM_Job_Log__c.Error_Message__c</members>
+        <members>DHM_Job_Log__c.Extended_Status__c</members>
+        <members>DHM_Job_Log__c.Total_Job_Items__c</members>
+        <members>DHM_Job_Log__c.Job_Items_Processed__c</members>
         <name>CustomField</name>
     </types>
     <types>
         <members>DHM_Merge_Account_History__c</members>
         <members>DHM_Merge_Contact_History__c</members>
         <members>DHM_Settings__c</members>
+        <members>DHM_Job_Log__c</members>
         <name>CustomObject</name>
     </types>
     <types>
@@ -59,6 +81,14 @@
         <members>DHM_Account_Duplicate_Management</members>
         <members>DHM_Contact_Duplicate_Management</members>
         <name>Flow</name>
+    </types>
+    <types>
+        <members>DHM_Job_Log__c</members>
+        <name>CustomTab</name>
+    </types>
+    <types>
+        <members>DHM_Job_Log_Reviewer</members>
+        <name>PermissionSet</name>
     </types>
     <version>67.0</version>
 </Package>

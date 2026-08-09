@@ -28,6 +28,8 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
         System.assertNotEquals(null, results[0].jobId);
         System.assertEquals('Queued duplicate check batch job.', results[0].message);
         System.assertEquals(50, DHM_DuplicateCheckBatchLauncher.DEFAULT_BATCH_SIZE);
+        System.assertEquals(10, DHM_DuplicateCheckBatchLauncher.ACCOUNT_BATCH_SIZE);
+        System.assertEquals(50, DHM_DuplicateCheckBatchLauncher.CONTACT_BATCH_SIZE);
     }
 
     @IsTest
