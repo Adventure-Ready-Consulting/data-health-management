@@ -153,13 +153,13 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>Private</externalSharingModel>
-    <label>Merge Contact History</label>
+    <label>DHM Merge Contact History</label>
     <nameField>
         <displayFormat>Merge History {0000}</displayFormat>
         <label>Name</label>
         <type>AutoNumber</type>
     </nameField>
-    <pluralLabel>Merge Contact Histories</pluralLabel>
+    <pluralLabel>DHM Merge Contact Histories</pluralLabel>
     <searchLayouts></searchLayouts>
     <sharingModel>ReadWrite</sharingModel>
     <visibility>Public</visibility>

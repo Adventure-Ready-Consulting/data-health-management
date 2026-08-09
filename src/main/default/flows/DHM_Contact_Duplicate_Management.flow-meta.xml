@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <name>DHM_Contact_Duplicate_Management</name>
+        <label>DHM - Contact Duplicate Management</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>DHM_DuplicateCheckBatchLauncher</actionName>
+        <actionType>apex</actionType>
+        <flowTransactionModel>Automatic</flowTransactionModel>
+        <inputParameters>
+            <name>additionalMatchFieldsCsv</name>
+            <value>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+                <stringValue>Birthdate</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>contactExclusionCriteria</name>
+            <value>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+                <stringValue>C501_Age_Calculate__c &lt; 18</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>maxMerges</name>
+            <value>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+                <numberValue>1.0</numberValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>objectType</name>
+            <value>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+                <stringValue>Contact</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>performMerge</name>
+            <value>
+                <booleanValue>true</booleanValue>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <nameSegment>DHM_DuplicateCheckBatchLauncher</nameSegment>
+        <offset>0</offset>
+    </actionCalls>
+    <apiVersion>67.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <description>Runs the Data Health Management Contact merge process. Uses Salesforce Contact Duplicate Rules to identify duplicate Contacts, applies DHM business rules to ensure merges occur only within the same Account, and optionally merges eligible Contacts. Supports evaluation-only mode (performMerge = false) and Maximum Merges for controlled testing.</description>
+    <environments>Default</environments>
+    <interviewLabel>DHM - Contact Duplicate Management {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>DHM - Contact Duplicate Management</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>DHM_Contact_Duplicate_Management</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+</Flow>
