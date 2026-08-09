@@ -224,4 +224,30 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
         System.assertEquals(null, results[1].jobId);
         System.assertEquals('Unsupported objectType: Opportunity', results[1].message);
     }
+
+    @IsTest
+    static void testRunSkipsWhenDhmBatchAlreadyActive() {
+        DHM_DuplicateCheckBatchLauncher.Request req =
+            new DHM_DuplicateCheckBatchLauncher.Request();
+        req.objectType = 'Account';
+        req.performMerge = false;
+
+        DHM_DuplicateCheckBatchLauncher.forceActiveDhmBatchJobForTest = true;
+        try {
+            List<DHM_DuplicateCheckBatchLauncher.Result> results =
+                DHM_DuplicateCheckBatchLauncher.run(
+                    new List<DHM_DuplicateCheckBatchLauncher.Request>{ req }
+                );
+
+            System.assertEquals(1, results.size());
+            System.assertEquals(null, results[0].jobId);
+            System.assert(
+                results[0].message.startsWith(
+                    'Skipped duplicate check batch because another DHM duplicate check batch job is already active.'
+                )
+            );
+        } finally {
+            DHM_DuplicateCheckBatchLauncher.forceActiveDhmBatchJobForTest = false;
+        }
+    }
 }

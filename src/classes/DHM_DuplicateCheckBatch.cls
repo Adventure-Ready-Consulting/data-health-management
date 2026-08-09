@@ -200,9 +200,10 @@ public without sharing class DHM_DuplicateCheckBatch
         if (hasReachedMergeLimit()) {
             DHM_SharedCode.OutputDebugLogText(
                 LoggingLevel.DEBUG,
-                '***** DHM_DuplicateCheckBatch::execute merge limit already reached. Skipping remaining scope. maxMerges=' +
+                '***** DHM_DuplicateCheckBatch::execute merge limit already reached. Aborting remaining batch work. maxMerges=' +
                 String.valueOf(maxMerges) + ', mergeCount=' + String.valueOf(mergeCount)
             );
+            abortRemainingBatchWork(bc);
             return;
         }
 
@@ -230,6 +231,13 @@ public without sharing class DHM_DuplicateCheckBatch
                 LoggingLevel.DEBUG,
                 '***** DHM_DuplicateCheckBatch::execute unsupported objectType=' + objectType
             );
+        }
+
+        // Returning from execute() only ends the current scope. QueryLocator has already
+        // prepared the remaining scopes, so explicitly abort the Batch Apex job once the
+        // configured merge limit is satisfied.
+        if (hasReachedMergeLimit()) {
+            abortRemainingBatchWork(bc);
         }
 
         DHM_SharedCode.OutputDebugLogText(
@@ -726,6 +734,27 @@ public without sharing class DHM_DuplicateCheckBatch
         // Date, DateTime, Time, Boolean, numeric, Id/reference, picklist,
         // and other typed values are populated when non-null.
         return true;
+    }
+
+    private void abortRemainingBatchWork(Database.BatchableContext bc) {
+        if (bc == null || !hasReachedMergeLimit()) {
+            return;
+        }
+
+        Id jobId = bc.getJobId();
+
+        DHM_SharedCode.OutputDebugLogText(
+            LoggingLevel.DEBUG,
+            '***** DHM_DuplicateCheckBatch::abortRemainingBatchWork merge limit reached. Aborting jobId=' +
+            String.valueOf(jobId) + ', mergeCount=' + String.valueOf(mergeCount) +
+            ', maxMerges=' + String.valueOf(maxMerges)
+        );
+
+        // Do not abort Salesforce's asynchronous unit-test harness. The existing maxMerges
+        // tests still exercise the decision path, while production stops future scopes here.
+        if (!Test.isRunningTest()) {
+            System.abortJob(jobId);
+        }
     }
 
     private Boolean hasReachedMergeLimit() {

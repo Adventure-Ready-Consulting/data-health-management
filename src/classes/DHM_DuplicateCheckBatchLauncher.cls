@@ -2,6 +2,16 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
 
     public static final Integer DEFAULT_BATCH_SIZE = 50;
 
+    @TestVisible
+    private static Boolean forceActiveDhmBatchJobForTest = false;
+
+    private static final Set<String> ACTIVE_BATCH_STATUSES = new Set<String>{
+        'Holding',
+        'Queued',
+        'Preparing',
+        'Processing'
+    };
+
     public class Request {
         @InvocableVariable(label='Source Object Type' required=true)
         public String objectType;
@@ -40,6 +50,16 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
 
         @InvocableVariable
         public Id jobId;
+    }
+
+    private class ActiveBatchJobInfo {
+        public Id jobId;
+        public String status;
+
+        public ActiveBatchJobInfo(Id jobId, String status) {
+            this.jobId = jobId;
+            this.status = status;
+        }
     }
 
     @InvocableMethod(label='Start Duplicate Check Batch')
@@ -141,6 +161,33 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                 }
             }
 
+            ActiveBatchJobInfo activeJob = findActiveDhmBatchJob();
+            if (activeJob != null) {
+                res.message =
+                    'Skipped duplicate check batch because another DHM duplicate check batch job is already active. ' +
+                    'Existing JobId=' + String.valueOf(activeJob.jobId) +
+                    ', Status=' + activeJob.status + '.';
+                res.jobId = null;
+                results.add(res);
+
+                System.debug(LoggingLevel.WARN,
+                    '***** DHM BATCH NOT QUEUED - ACTIVE JOB EXISTS ***** ' +
+                    'ExistingJobId=' + String.valueOf(activeJob.jobId) +
+                    ', Status=' + activeJob.status +
+                    ', RequestedObjectType=' + req.objectType +
+                    ', RequestedRecordId=' + String.valueOf(req.recordId)
+                );
+
+                DHM_SharedCode.OutputDebugLogText(
+                    LoggingLevel.DEBUG,
+                    '***** DHM_DuplicateCheckBatchLauncher::run Request #' + reqIndex +
+                    ' skipped - active DHM batch exists JobId=' +
+                    String.valueOf(activeJob.jobId) +
+                    ', Status=' + activeJob.status
+                );
+                continue;
+            }
+
             System.debug(LoggingLevel.ERROR,
                 '***** DHM LAUNCHER ENTER ***** ' +
                 'objectType=' + req.objectType +
@@ -183,5 +230,31 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
         );
 
         return results;
+    }
+
+    @TestVisible
+    private static ActiveBatchJobInfo findActiveDhmBatchJob() {
+        if (Test.isRunningTest() && forceActiveDhmBatchJobForTest) {
+            return new ActiveBatchJobInfo(
+                '707000000000001AAA',
+                'Processing'
+            );
+        }
+
+        List<AsyncApexJob> activeJobs = [
+            SELECT Id, Status, ApexClass.Name, CreatedDate
+            FROM AsyncApexJob
+            WHERE ApexClass.Name = 'DHM_DuplicateCheckBatch'
+            AND Status IN :ACTIVE_BATCH_STATUSES
+            ORDER BY CreatedDate ASC
+            LIMIT 1
+        ];
+
+        if (activeJobs.isEmpty()) {
+            return null;
+        }
+
+        AsyncApexJob activeJob = activeJobs[0];
+        return new ActiveBatchJobInfo(activeJob.Id, activeJob.Status);
     }
 }
