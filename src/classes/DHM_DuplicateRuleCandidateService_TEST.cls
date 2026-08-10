@@ -52,8 +52,8 @@ private class DHM_DuplicateRuleCandidateService_TEST {
                 sourceAccount.Id,
                 false,
                 null,
-                null
-            );
+                null,
+                false);
 
         System.assertEquals(true, result.candidateFound);
         System.assertEquals(targetAccount.Id, result.masterAccountId);

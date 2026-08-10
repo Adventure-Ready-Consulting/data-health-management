@@ -252,4 +252,12 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
             DHM_DuplicateCheckBatchLauncher.forceActiveDhmBatchJobForTest = false;
         }
     }
+
+    @IsTest
+    static void accountRequireAllMatchingContactsInputDefaultsSafely() {
+        DHM_DuplicateCheckBatchLauncher.Request req = new DHM_DuplicateCheckBatchLauncher.Request();
+        System.assertEquals(null, req.accountMergeRequireAllMatchingContacts);
+        req.accountMergeRequireAllMatchingContacts = true;
+        System.assertEquals(true, req.accountMergeRequireAllMatchingContacts);
+    }
 }

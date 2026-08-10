@@ -9,6 +9,13 @@
         <actionType>apex</actionType>
         <flowTransactionModel>Automatic</flowTransactionModel>
         <inputParameters>
+            <name>accountMergeRequireAllMatchingContacts</name>
+            <value>
+                <booleanValue>false</booleanValue>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
             <name>additionalMatchFieldsCsv</name>
             <value>
                 <inputConfiguratorMode>Resource</inputConfiguratorMode>

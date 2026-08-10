@@ -51,4 +51,30 @@ private class DHM_JobLogService_TEST {
     static void truncatesLongText() {
         System.assertEquals('abcd', DHM_JobLogService.truncate('abcdef', 4));
     }
+
+    @IsTest
+    static void mergeLimitStopDoesNotCreateAnErrorByItself() {
+        Id fakeJobId = (Id)'707000000000002AAA';
+        String fakeJobIdText = String.valueOf(fakeJobId);
+        DHM_JobLogService.createStartedLog(fakeJobId, 'Account', true, 1, 10);
+
+        DHM_JobLogService.markStoppedForMergeLimit(
+            fakeJobId,
+            10,
+            0,
+            1,
+            1,
+            0
+        );
+
+        DHM_Job_Log__c row = [
+            SELECT Status__c, Apex_Job_Status__c, Error_Count__c
+            FROM DHM_Job_Log__c
+            WHERE Batch_Job_Id__c = :fakeJobIdText
+            LIMIT 1
+        ];
+        System.assertEquals('Stopped - Merge Limit', row.Status__c);
+        System.assertEquals('Aborted', row.Apex_Job_Status__c);
+        System.assertEquals(0, row.Error_Count__c);
+    }
 }

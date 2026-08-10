@@ -7,7 +7,8 @@ Id jobId = DHM_DuplicateCheckBatch.startBatch(
     null,
     'C501_Age_Calculate__c < 18',
     1,
-    null // optional source Account/Contact Id; use an Id here for a focused test
+    null, // optional source Account/Contact Id; use an Id here for a focused test
+    false  // Account Merge Require All Matching Contacts
 );
 System.debug('Batch Job Id = ' + jobId);
 */
@@ -23,12 +24,11 @@ public without sharing class DHM_DuplicateCheckBatch
 
     private String objectType;
     private Boolean performMerge;
-    // Legacy internal name retained for compatibility. In Version 2.0 production paths,
-    // this contains the Flow input additionalMatchFieldsCsv.
     private String matchFieldsCsv;
     private String contactExclusionCriteria;
     private Integer maxMerges;
     private Id sourceRecordId;
+    private Boolean accountMergeRequireAllMatchingContacts;
 
     private Integer processedCount = 0;
     private Integer updatedCount = 0;
@@ -40,37 +40,11 @@ public without sharing class DHM_DuplicateCheckBatch
     public DHM_DuplicateCheckBatch(
         String objectType,
         Boolean performMerge,
-        String matchFieldsCsv
-    ) {
-        this(objectType, performMerge, matchFieldsCsv, null);
-    }
-
-    public DHM_DuplicateCheckBatch(
-        String objectType,
-        Boolean performMerge,
-        String matchFieldsCsv,
-        String contactExclusionCriteria
-    ) {
-        this(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, null, null);
-    }
-
-    public DHM_DuplicateCheckBatch(
-        String objectType,
-        Boolean performMerge,
-        String matchFieldsCsv,
-        String contactExclusionCriteria,
-        Integer maxMerges
-    ) {
-        this(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, maxMerges, null);
-    }
-
-    public DHM_DuplicateCheckBatch(
-        String objectType,
-        Boolean performMerge,
         String matchFieldsCsv,
         String contactExclusionCriteria,
         Integer maxMerges,
-        Id sourceRecordId
+        Id sourceRecordId,
+        Boolean accountMergeRequireAllMatchingContacts
     ) {
         this.objectType = objectType;
         this.performMerge = performMerge == null ? false : performMerge;
@@ -78,6 +52,7 @@ public without sharing class DHM_DuplicateCheckBatch
         this.contactExclusionCriteria = contactExclusionCriteria;
         this.maxMerges = (maxMerges == null || maxMerges <= 0) ? null : maxMerges;
         this.sourceRecordId = sourceRecordId;
+        this.accountMergeRequireAllMatchingContacts = accountMergeRequireAllMatchingContacts == true;
 
         DHM_SharedCode.OutputDebugLogText(
             LoggingLevel.DEBUG,
@@ -86,35 +61,9 @@ public without sharing class DHM_DuplicateCheckBatch
             ', matchFieldsCsv=' + matchFieldsCsv +
             ', contactExclusionCriteria=' + this.contactExclusionCriteria +
             ', maxMerges=' + String.valueOf(this.maxMerges) +
-            ', sourceRecordId=' + String.valueOf(this.sourceRecordId)
+            ', sourceRecordId=' + String.valueOf(this.sourceRecordId) +
+            ', accountMergeRequireAllMatchingContacts=' + String.valueOf(this.accountMergeRequireAllMatchingContacts)
         );
-    }
-
-    public static Id startBatch(
-        String objectType,
-        Boolean performMerge,
-        String matchFieldsCsv
-    ) {
-        return startBatch(objectType, performMerge, matchFieldsCsv, null);
-    }
-
-    public static Id startBatch(
-        String objectType,
-        Boolean performMerge,
-        String matchFieldsCsv,
-        String contactExclusionCriteria
-    ) {
-        return startBatch(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, null);
-    }
-
-    public static Id startBatch(
-        String objectType,
-        Boolean performMerge,
-        String matchFieldsCsv,
-        String contactExclusionCriteria,
-        Integer maxMerges
-    ) {
-        return startBatch(objectType, performMerge, matchFieldsCsv, contactExclusionCriteria, maxMerges, null);
     }
 
     public static Id startBatch(
@@ -123,7 +72,8 @@ public without sharing class DHM_DuplicateCheckBatch
         String matchFieldsCsv,
         String contactExclusionCriteria,
         Integer maxMerges,
-        Id sourceRecordId
+        Id sourceRecordId,
+        Boolean accountMergeRequireAllMatchingContacts
     ) {
         Integer batchSizeToUse = Test.isRunningTest()
             ? 200
@@ -137,6 +87,7 @@ public without sharing class DHM_DuplicateCheckBatch
             ', contactExclusionCriteria=' + contactExclusionCriteria +
             ', maxMerges=' + String.valueOf(maxMerges) +
             ', sourceRecordId=' + String.valueOf(sourceRecordId) +
+            ', accountMergeRequireAllMatchingContacts=' + String.valueOf(accountMergeRequireAllMatchingContacts == true) +
             ', batchSize=' + String.valueOf(batchSizeToUse)
         );
 
@@ -147,7 +98,8 @@ public without sharing class DHM_DuplicateCheckBatch
                 matchFieldsCsv,
                 contactExclusionCriteria,
                 maxMerges,
-                sourceRecordId
+                sourceRecordId,
+                accountMergeRequireAllMatchingContacts
             ),
             batchSizeToUse
         );
@@ -372,6 +324,27 @@ public without sharing class DHM_DuplicateCheckBatch
 
                     recordEligibleMerge(res.merged);
 
+                    if (performMerge && res.merged) {
+                        candidateSetCount++;
+
+                        // The duplicate Contact no longer exists after a successful merge.
+                        // Do not attempt to update it, which previously produced a false
+                        // application error for every intentional merge. If the current
+                        // Contact survived as master, clear any stale candidate value.
+                        if (res.duplicateContactId == con.Id) {
+                            updateNeeded = false;
+                            continue;
+                        }
+                        if (con.Duplicate_Check_Candidate__c != null) {
+                            updateCon.Duplicate_Check_Candidate__c = null;
+                            updateNeeded = true;
+                        }
+                        if (updateNeeded) {
+                            updates.add(updateCon);
+                        }
+                        continue;
+                    }
+
                     Id candidateId =
                         (res.masterContactId == con.Id)
                         ? res.duplicateContactId
@@ -565,7 +538,8 @@ public without sharing class DHM_DuplicateCheckBatch
                         acc.Id,
                         performMerge,
                         matchFieldsCsv,
-                        contactExclusionCriteria
+                        contactExclusionCriteria,
+                        accountMergeRequireAllMatchingContacts
                     );
 
                 if (acc.Duplicate_Check_Error__c != null) {
@@ -579,6 +553,27 @@ public without sharing class DHM_DuplicateCheckBatch
                     res.duplicateAccountId != null) {
 
                     recordEligibleMerge(res.merged);
+
+                    if (performMerge && res.merged) {
+                        candidateSetCount++;
+
+                        // The duplicate Account no longer exists after a successful merge.
+                        // Do not attempt to update it, which previously produced a false
+                        // application error for every intentional merge. If the current
+                        // Account survived as master, clear any stale candidate value.
+                        if (res.duplicateAccountId == acc.Id) {
+                            updateNeeded = false;
+                            continue;
+                        }
+                        if (acc.Duplicate_Check_Candidate__c != null) {
+                            updateAcc.Duplicate_Check_Candidate__c = null;
+                            updateNeeded = true;
+                        }
+                        if (updateNeeded) {
+                            updates.add(updateAcc);
+                        }
+                        continue;
+                    }
 
                     Id candidateId =
                         (res.masterAccountId == acc.Id)

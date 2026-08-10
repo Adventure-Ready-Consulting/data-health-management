@@ -16,25 +16,12 @@ public without sharing class DHM_SingleAccountMergeService {
 
     public static DHM_SingleAccountMerge.Result evaluateAndMerge(
         Id sourceAccountId,
-        Boolean performMerge
-    ) {
-        return evaluateAndMerge(sourceAccountId, performMerge, null, null);
-    }
-
-    public static DHM_SingleAccountMerge.Result evaluateAndMerge(
-        Id sourceAccountId,
-        Boolean performMerge,
-        String matchFieldsCsv
-    ) {
-        return evaluateAndMerge(sourceAccountId, performMerge, matchFieldsCsv, null);
-    }
-
-    public static DHM_SingleAccountMerge.Result evaluateAndMerge(
-        Id sourceAccountId,
         Boolean performMerge,
         String matchFieldsCsv,
-        String contactExclusionCriteria
+        String contactExclusionCriteria,
+        Boolean accountMergeRequireAllMatchingContacts
     ) {
+        Boolean requireAllMatchingContacts = accountMergeRequireAllMatchingContacts == true;
         DHM_SingleAccountMerge.Result res = new DHM_SingleAccountMerge.Result();
         res.sourceAccountId = sourceAccountId;
         res.targetAccountId = null;
@@ -91,19 +78,23 @@ public without sharing class DHM_SingleAccountMergeService {
                 sourceAccount,
                 sourceContacts,
                 matchFields,
-                contactExclusionCriteria
+                contactExclusionCriteria,
+                requireAllMatchingContacts
             );
         } else {
             matchBundle = findTargetAccountUsingDuplicateRules(
                 sourceAccount,
                 sourceContacts,
                 contactExclusionCriteria,
-                matchFieldsCsv
+                matchFieldsCsv,
+                requireAllMatchingContacts
             );
         }
 
         if (matchBundle == null) {
-            res.message = 'No target account found where all Contacts in one Account have distinct matches in the other Account.';
+            res.message = requireAllMatchingContacts
+                ? 'No target account found where both Accounts have the same number of Contacts and every Contact has a distinct match.'
+                : 'No target account found where all Contacts in one Account have distinct matches in the other Account.';
             return res;
         }
 
@@ -181,6 +172,17 @@ public without sharing class DHM_SingleAccountMergeService {
         List<Contact> sourceContacts,
         List<String> matchFields,
         String contactExclusionCriteria
+    ) {
+        return findTargetAccountForSource(sourceAccount, sourceContacts, matchFields, contactExclusionCriteria, false);
+    }
+
+    @TestVisible
+    static MatchBundle findTargetAccountForSource(
+        Account sourceAccount,
+        List<Contact> sourceContacts,
+        List<String> matchFields,
+        String contactExclusionCriteria,
+        Boolean accountMergeRequireAllMatchingContacts
     ) {
         if (sourceAccount == null || sourceAccount.Id == null ||
             sourceContacts == null || sourceContacts.isEmpty()) {
@@ -270,6 +272,29 @@ public without sharing class DHM_SingleAccountMergeService {
         }
         candidateAccountIds.sort();
 
+        if (accountMergeRequireAllMatchingContacts == true && !candidateAccountIds.isEmpty()) {
+            Map<Id, Integer> totalContactCountByAccountId = new Map<Id, Integer>();
+            for (AggregateResult ar : [
+                SELECT AccountId accountId, COUNT(Id) contactCount
+                FROM Contact
+                WHERE AccountId IN :candidateAccountIds
+                GROUP BY AccountId
+            ]) {
+                totalContactCountByAccountId.put(
+                    (Id) ar.get('accountId'),
+                    Integer.valueOf(String.valueOf(ar.get('contactCount')))
+                );
+            }
+
+            List<Id> equalSizedCandidateAccountIds = new List<Id>();
+            for (Id candidateAccountId : candidateAccountIds) {
+                if (totalContactCountByAccountId.get(candidateAccountId) == sourceContacts.size()) {
+                    equalSizedCandidateAccountIds.add(candidateAccountId);
+                }
+            }
+            candidateAccountIds = equalSizedCandidateAccountIds;
+        }
+
         Set<Id> excludedAccountIds = findAccountIdsMatchingContactExclusion(
             new Set<Id>(candidateAccountIds),
             contactExclusionCriteria
@@ -314,7 +339,8 @@ public without sharing class DHM_SingleAccountMergeService {
         Account sourceAccount,
         List<Contact> sourceContacts,
         String contactExclusionCriteria,
-        String additionalMatchFieldsCsv
+        String additionalMatchFieldsCsv,
+        Boolean accountMergeRequireAllMatchingContacts
     ) {
         if (sourceAccount == null || sourceAccount.Id == null ||
             sourceContacts == null || sourceContacts.isEmpty()) {
@@ -385,6 +411,11 @@ public without sharing class DHM_SingleAccountMergeService {
 
         for (Account candidate : candidateAccounts) {
             if (excludedAccountIds.contains(candidate.Id) || candidate.Contacts.isEmpty()) {
+                continue;
+            }
+
+            if (accountMergeRequireAllMatchingContacts == true &&
+                candidate.Contacts.size() != sourceContacts.size()) {
                 continue;
             }
 

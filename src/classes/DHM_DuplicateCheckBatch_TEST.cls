@@ -26,8 +26,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
-            'FirstName,LastName,Birthdate'
-        );
+            'FirstName,LastName,Birthdate',
+            null,
+            null,
+            null,
+            false);
         Test.stopTest();
 
         Contact refreshed = [
@@ -73,8 +76,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
-            'FirstName,LastName,Birthdate'
-        );
+            'FirstName,LastName,Birthdate',
+            null,
+            null,
+            null,
+            false);
         Test.stopTest();
 
         Contact refreshed = [
@@ -103,8 +109,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
-            'FirstName,LastName,Birthdate'
-        );
+            'FirstName,LastName,Birthdate',
+            null,
+            null,
+            null,
+            false);
         Test.stopTest();
 
         Contact refreshed = [
@@ -133,8 +142,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
-            'FirstName,LastName,Birthdate'
-        );
+            'FirstName,LastName,Birthdate',
+            null,
+            null,
+            null,
+            false);
         Test.stopTest();
 
         Contact refreshed = [
@@ -189,8 +201,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateCheckBatch.startBatch(
             'Account',
             false,
-            'FirstName,LastName,Birthdate'
-        );
+            'FirstName,LastName,Birthdate',
+            null,
+            null,
+            null,
+            false);
         Test.stopTest();
 
         Account refreshed = [
@@ -220,8 +235,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateCheckBatch.startBatch(
             'Account',
             false,
-            'FirstName,LastName,Birthdate'
-        );
+            'FirstName,LastName,Birthdate',
+            null,
+            null,
+            null,
+            false);
         Test.stopTest();
 
         Account refreshed = [
@@ -251,8 +269,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateCheckBatch.startBatch(
             'Account',
             false,
-            'FirstName,LastName,Birthdate'
-        );
+            'FirstName,LastName,Birthdate',
+            null,
+            null,
+            null,
+            false);
         Test.stopTest();
 
         Account refreshed = [
@@ -275,8 +296,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateCheckBatch.startBatch(
             'Opportunity',
             false,
-            'Name'
-        );
+            'Name',
+            null,
+            null,
+            null,
+            false);
         Test.stopTest();
 
         Account refreshed = [
@@ -304,8 +328,11 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateCheckBatch.startBatch(
             'Contact',
             false,
-            ''
-        );
+            '',
+            null,
+            null,
+            null,
+            false);
         Test.stopTest();
 
         Contact refreshed = [
@@ -356,8 +383,8 @@ private class DHM_DuplicateCheckBatch_TEST {
             null,
             null,
             1,
-            sourceAcct.Id
-        );
+            sourceAcct.Id,
+            false);
         Test.stopTest();
 
         Account refreshedSource = [
@@ -399,8 +426,9 @@ private class DHM_DuplicateCheckBatch_TEST {
             false,
             'FirstName,LastName,Birthdate',
             null,
-            1
-        );
+            1,
+            null,
+            false);
         Test.stopTest();
 
         Set<Id> testContactIds = new Set<Id>{ con1.Id, con2.Id };
@@ -455,8 +483,8 @@ private class DHM_DuplicateCheckBatch_TEST {
             'Birthdate',
             null,
             1,
-            sourceAcct.Id
-        );
+            sourceAcct.Id,
+            false);
         Test.stopTest();
 
         Account refreshed = [
@@ -509,8 +537,8 @@ private class DHM_DuplicateCheckBatch_TEST {
             'Birthdate',
             null,
             1,
-            sourceCon.Id
-        );
+            sourceCon.Id,
+            false);
         Test.stopTest();
 
         Contact refreshed = [
