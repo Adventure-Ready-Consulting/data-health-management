@@ -33,8 +33,8 @@ private class DHM_SingleContactMerge_TEST {
         System.assertNotEquals(null, result);
         System.assertEquals(true, result.candidateFound);
         System.assertEquals(1, result.duplicateCount);
-        System.assertEquals(c1.Id, result.masterContactId);
-        System.assertEquals(c2.Id, result.duplicateContactId);
+        System.assertEquals(c2.Id, result.masterContactId);
+        System.assertEquals(c1.Id, result.duplicateContactId);
         System.assertEquals(false, result.merged);
     }
 
@@ -171,9 +171,43 @@ private class DHM_SingleContactMerge_TEST {
             );
 
         System.assertEquals(true, result.candidateFound);
-        System.assertEquals(c1.Id, result.masterContactId);
-        System.assertEquals(c2.Id, result.duplicateContactId);
+        System.assertEquals(c2.Id, result.masterContactId);
+        System.assertEquals(c1.Id, result.duplicateContactId);
         System.assertEquals(false, result.merged);
+    }
+
+    @IsTest
+    static void testNewestContactWinsAndOlderBackfillsBlankFields() {
+        Account acct = new Account(Name = 'Newest Master Household');
+        insert acct;
+
+        Contact older = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Alex',
+            LastName = 'Taylor',
+            Birthdate = Date.newInstance(1980, 1, 1),
+            Email = 'older@example.com',
+            Phone = '555-1111'
+        );
+        insert older;
+
+        Contact newer = new Contact(
+            AccountId = acct.Id,
+            FirstName = 'Alex',
+            LastName = 'Taylor',
+            Birthdate = Date.newInstance(1980, 1, 1),
+            Email = 'newer@example.com',
+            Phone = null
+        );
+        insert newer;
+
+        DHM_SingleContactMerge.Result result =
+            DHM_SingleContactMergeService.evaluateAndMerge(newer.Id, true, 'Birthdate');
+
+        System.assertEquals(newer.Id, result.masterContactId);
+        Contact surviving = [SELECT Id, Email, Phone FROM Contact WHERE Id = :newer.Id];
+        System.assertEquals('newer@example.com', surviving.Email);
+        System.assertEquals('555-1111', surviving.Phone);
     }
 
     @IsTest
@@ -381,6 +415,10 @@ private class DHM_SingleContactMerge_TEST {
         );
         insert newerContact;
 
+        // Make newest-master direction deterministic in the test.
+        Test.setCreatedDate(olderContact.Id, Datetime.newInstance(2026, 1, 1, 0, 0, 0));
+        Test.setCreatedDate(newerContact.Id, Datetime.newInstance(2026, 1, 2, 0, 0, 0));
+
         Test.startTest();
         DHM_SingleContactMerge.Result result =
             DHM_SingleContactMergeService.evaluateAndMerge(
@@ -392,24 +430,24 @@ private class DHM_SingleContactMerge_TEST {
         System.assertNotEquals(null, result);
         System.assertEquals(true, result.candidateFound);
         System.assertEquals(true, result.merged);
-        System.assertEquals(olderContact.Id, result.masterContactId);
-        System.assertEquals(newerContact.Id, result.duplicateContactId);
+        System.assertEquals(newerContact.Id, result.masterContactId);
+        System.assertEquals(olderContact.Id, result.duplicateContactId);
         System.assert(result.message.contains('Merged contact'));
 
         List<Contact> dupStillExists = [
             SELECT Id
             FROM Contact
-            WHERE Id = :newerContact.Id
+            WHERE Id = :olderContact.Id
         ];
         System.assertEquals(0, dupStillExists.size());
 
         Contact survivor = [
             SELECT Id
             FROM Contact
-            WHERE Id = :olderContact.Id
+            WHERE Id = :newerContact.Id
             LIMIT 1
         ];
-        System.assertEquals(olderContact.Id, survivor.Id);
+        System.assertEquals(newerContact.Id, survivor.Id);
     }
 
     @IsTest

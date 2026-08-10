@@ -39,7 +39,7 @@ public without sharing class DHM_SingleContactMergeService {
         }
 
         List<Contact> sourceContacts = [
-            SELECT Id, AccountId, CreatedDate
+            SELECT Id, AccountId, CreatedDate, LastModifiedDate
             FROM Contact
             WHERE Id = :sourceContactId
             LIMIT 1
@@ -81,11 +81,11 @@ public without sharing class DHM_SingleContactMergeService {
 
         Id sourceAccountId = sourceContact.AccountId;
         List<Contact> sameAccountCandidates = [
-            SELECT Id, AccountId, CreatedDate
+            SELECT Id, AccountId, CreatedDate, LastModifiedDate
             FROM Contact
             WHERE Id IN :duplicateIds
               AND AccountId = :sourceAccountId
-            ORDER BY CreatedDate ASC, Id ASC
+            ORDER BY CreatedDate DESC, LastModifiedDate DESC, Id DESC
         ];
         if (sameAccountCandidates.isEmpty()) {
             res.masterContactId = sourceContact.Id;
@@ -96,9 +96,7 @@ public without sharing class DHM_SingleContactMergeService {
 
         Contact winningMaster = sourceContact;
         Contact winningDuplicate = sameAccountCandidates[0];
-        if (winningDuplicate.CreatedDate < sourceContact.CreatedDate ||
-            (winningDuplicate.CreatedDate == sourceContact.CreatedDate &&
-             String.valueOf(winningDuplicate.Id).compareTo(String.valueOf(sourceContact.Id)) < 0)) {
+        if (isContactNewer(winningDuplicate, sourceContact)) {
             winningMaster = winningDuplicate;
             winningDuplicate = sourceContact;
         }
@@ -182,9 +180,9 @@ public without sharing class DHM_SingleContactMergeService {
         Contact winningDuplicate = matches[0];
         Set<Id> compareIds = new Set<Id>{ sourceContact.Id, winningDuplicate.Id };
         List<Contact> compareContacts = [
-            SELECT Id, CreatedDate FROM Contact
+            SELECT Id, CreatedDate, LastModifiedDate FROM Contact
             WHERE Id IN :compareIds
-            ORDER BY CreatedDate ASC, Id ASC
+            ORDER BY CreatedDate DESC, LastModifiedDate DESC, Id DESC
         ];
         if (!compareContacts.isEmpty() && compareContacts[0].Id != sourceContact.Id) {
             winningMaster = compareContacts[0];
@@ -230,7 +228,7 @@ public without sharing class DHM_SingleContactMergeService {
             ' FROM Contact ' +
             ' WHERE AccountId = :accountId ' +
             buildContactEqualityWhereClause(inputContact, matchFields) +
-            ' ORDER BY CreatedDate ASC, Id ASC';
+            ' ORDER BY CreatedDate DESC, LastModifiedDate DESC, Id DESC';
 
         List<Contact> matches = Database.query(soql);
 
@@ -264,6 +262,19 @@ public without sharing class DHM_SingleContactMergeService {
         );
     }
 
+    @TestVisible
+    private static Boolean isContactNewer(Contact candidate, Contact current) {
+        if (candidate == null) return false;
+        if (current == null) return true;
+        if (candidate.CreatedDate != current.CreatedDate) {
+            return candidate.CreatedDate > current.CreatedDate;
+        }
+        if (candidate.LastModifiedDate != current.LastModifiedDate) {
+            return candidate.LastModifiedDate > current.LastModifiedDate;
+        }
+        return String.valueOf(candidate.Id).compareTo(String.valueOf(current.Id)) > 0;
+    }
+
     public static List<String> parseMatchFields(String matchFieldsCsv) {
         List<String> matchFields = new List<String>();
 
@@ -283,7 +294,7 @@ public without sharing class DHM_SingleContactMergeService {
 
     public static String buildContactSelectFields(List<String> matchFields) {
         Set<String> fieldSet = new Set<String>{
-            'Id', 'AccountId', 'CreatedDate'
+            'Id', 'AccountId', 'CreatedDate', 'LastModifiedDate'
         };
         fieldSet.addAll(matchFields);
 

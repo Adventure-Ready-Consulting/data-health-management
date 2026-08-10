@@ -584,6 +584,11 @@ private class DHM_SingleAccountMerge_TEST {
         Account candidate = new Account(Name = 'Smaller Candidate Household');
         insert new List<Account>{ source, candidate };
 
+        // Newest-created record is the merge master. Make the source explicitly newer
+        // so this test validates asymmetric household matching independently of insert timing.
+        Test.setCreatedDate(candidate.Id, Datetime.newInstance(2026, 1, 1, 0, 0, 0));
+        Test.setCreatedDate(source.Id, Datetime.newInstance(2026, 1, 2, 0, 0, 0));
+
         Contact sourceOne = new Contact(AccountId = source.Id, LastName = 'Smith');
         Contact sourceExtra = new Contact(AccountId = source.Id, LastName = 'Unmatched Adult');
         Contact candidateOne = new Contact(AccountId = candidate.Id, LastName = 'Smith');
@@ -636,5 +641,32 @@ private class DHM_SingleAccountMerge_TEST {
         DHM_DuplicateRuleCandidateService.clearTestCandidates();
 
         System.assertEquals(false, result.candidateFound);
+    }
+
+    @IsTest
+    static void testReverseMatchBundleSwapsMasterDirection() {
+        Account older = new Account(Name = 'Older');
+        Account newer = new Account(Name = 'Newer');
+        insert new List<Account>{ older, newer };
+        Contact olderContact = new Contact(AccountId = older.Id, LastName = 'Match');
+        Contact newerContact = new Contact(AccountId = newer.Id, LastName = 'Match');
+        insert new List<Contact>{ olderContact, newerContact };
+
+        DHM_SingleAccountMergeService.MatchBundle original =
+            new DHM_SingleAccountMergeService.MatchBundle();
+        original.sourceAccountId = newer.Id;
+        original.targetAccountId = older.Id;
+        DHM_SingleAccountMergeService.ContactMatch cm =
+            new DHM_SingleAccountMergeService.ContactMatch();
+        cm.sourceContact = newerContact;
+        cm.targetContact = olderContact;
+        original.contactMatches.add(cm);
+
+        DHM_SingleAccountMergeService.MatchBundle reversed =
+            DHM_SingleAccountMergeService.reverseMatchBundle(original);
+        System.assertEquals(older.Id, reversed.sourceAccountId);
+        System.assertEquals(newer.Id, reversed.targetAccountId);
+        System.assertEquals(olderContact.Id, reversed.contactMatches[0].sourceContact.Id);
+        System.assertEquals(newerContact.Id, reversed.contactMatches[0].targetContact.Id);
     }
 }

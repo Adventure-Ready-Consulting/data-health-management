@@ -38,7 +38,7 @@ public without sharing class DHM_SingleAccountMergeService {
         }
 
         Account sourceAccount = [
-            SELECT Id, Name
+            SELECT Id, Name, CreatedDate, LastModifiedDate
             FROM Account
             WHERE Id = :sourceAccountId
             LIMIT 1
@@ -96,6 +96,19 @@ public without sharing class DHM_SingleAccountMergeService {
                 ? 'No target account found where both Accounts have the same number of Contacts and every Contact has a distinct match.'
                 : 'No target account found where all Contacts in one Account have distinct matches in the other Account.';
             return res;
+        }
+
+        if (useLegacyTestMatching && matchBundle.targetAccountId != null) {
+            Account targetAccount = [
+                SELECT Id, CreatedDate, LastModifiedDate
+                FROM Account
+                WHERE Id = :matchBundle.targetAccountId
+                LIMIT 1
+            ];
+            if (isAccountNewer(sourceAccount, targetAccount) &&
+                matchBundle.targetAccountId != sourceAccount.Id) {
+                matchBundle = reverseMatchBundle(matchBundle);
+            }
         }
 
         res.targetAccountId = matchBundle.targetAccountId;
@@ -393,11 +406,11 @@ public without sharing class DHM_SingleAccountMergeService {
         }
 
         List<Account> candidateAccounts = [
-            SELECT Id, CreatedDate,
+            SELECT Id, CreatedDate, LastModifiedDate,
                    (SELECT Id, AccountId, CreatedDate FROM Contacts ORDER BY CreatedDate, Id)
             FROM Account
             WHERE Id IN :accountCandidateIds
-            ORDER BY CreatedDate ASC, Id ASC
+            ORDER BY CreatedDate DESC, LastModifiedDate DESC, Id DESC
         ];
 
         Set<Id> allCandidateAccountIds = new Set<Id>();
@@ -426,9 +439,6 @@ public without sharing class DHM_SingleAccountMergeService {
                 candidate.Contacts,
                 additionalMatchFieldsCsv
             );
-            if (sourceIntoCandidate != null) {
-                return sourceIntoCandidate;
-            }
 
             MatchBundle candidateIntoSource = buildDuplicateRuleMatchBundle(
                 candidate.Id,
@@ -437,11 +447,49 @@ public without sharing class DHM_SingleAccountMergeService {
                 sourceContacts,
                 additionalMatchFieldsCsv
             );
-            if (candidateIntoSource != null) {
-                return candidateIntoSource;
+
+            MatchBundle eligibleBundle = sourceIntoCandidate != null
+                ? sourceIntoCandidate
+                : candidateIntoSource;
+            if (eligibleBundle != null) {
+                Boolean sourceIsNewer = isAccountNewer(sourceAccount, candidate);
+                if (sourceIsNewer && eligibleBundle.targetAccountId != sourceAccount.Id) {
+                    eligibleBundle = reverseMatchBundle(eligibleBundle);
+                } else if (!sourceIsNewer && eligibleBundle.targetAccountId != candidate.Id) {
+                    eligibleBundle = reverseMatchBundle(eligibleBundle);
+                }
+                return eligibleBundle;
             }
         }
         return null;
+    }
+
+    @TestVisible
+    private static Boolean isAccountNewer(Account candidate, Account current) {
+        if (candidate == null) return false;
+        if (current == null) return true;
+        if (candidate.CreatedDate != current.CreatedDate) {
+            return candidate.CreatedDate > current.CreatedDate;
+        }
+        if (candidate.LastModifiedDate != current.LastModifiedDate) {
+            return candidate.LastModifiedDate > current.LastModifiedDate;
+        }
+        return String.valueOf(candidate.Id).compareTo(String.valueOf(current.Id)) > 0;
+    }
+
+    @TestVisible
+    private static MatchBundle reverseMatchBundle(MatchBundle original) {
+        if (original == null) return null;
+        MatchBundle reversed = new MatchBundle();
+        reversed.sourceAccountId = original.targetAccountId;
+        reversed.targetAccountId = original.sourceAccountId;
+        for (ContactMatch originalMatch : original.contactMatches) {
+            ContactMatch reversedMatch = new ContactMatch();
+            reversedMatch.sourceContact = originalMatch.targetContact;
+            reversedMatch.targetContact = originalMatch.sourceContact;
+            reversed.contactMatches.add(reversedMatch);
+        }
+        return reversed;
     }
 
     private static MatchBundle buildDuplicateRuleMatchBundle(
