@@ -34,6 +34,10 @@ public without sharing class DHM_DuplicateCheckBatch
     private Integer updatedCount = 0;
     private Integer candidateSetCount = 0;
     private Integer mergeCount = 0;
+    private Integer deferredContactMergeCount = 0;
+    private Set<String> deferredContactPairKeys = new Set<String>();
+    private Datetime batchStartedAt;
+    private Boolean contactWorkerScheduled = false;
     private Boolean mergeLimitReached = false;
     private Integer errorCount = 0;
 
@@ -129,6 +133,8 @@ public without sharing class DHM_DuplicateCheckBatch
             ', sourceRecordId=' + String.valueOf(sourceRecordId) +
             ', soql=' + soql
         );
+
+        batchStartedAt = System.now();
 
         DHM_JobLogService.createStartedLog(
             bc.getJobId(),
@@ -305,10 +311,14 @@ public without sharing class DHM_DuplicateCheckBatch
             Boolean updateNeeded = false;
 
             try {
+                // Contact merges are intentionally deferred out of Batch Apex. NPSP can
+                // enqueue multiple Queueable jobs during Database.merge(), which exceeds the
+                // one-Queueable limit of a Batch Apex transaction. Discovery still happens
+                // here; a scheduled worker performs the actual Contact merges afterward.
                 DHM_SingleContactMerge.Result res =
                     DHM_SingleContactMergeService.evaluateAndMerge(
                         con.Id,
-                        performMerge,
+                        false,
                         matchFieldsCsv
                     );
 
@@ -322,27 +332,16 @@ public without sharing class DHM_DuplicateCheckBatch
                     res.masterContactId != null &&
                     res.duplicateContactId != null) {
 
-                    recordEligibleMerge(res.merged);
-
-                    if (performMerge && res.merged) {
-                        candidateSetCount++;
-
-                        // The duplicate Contact no longer exists after a successful merge.
-                        // Do not attempt to update it, which previously produced a false
-                        // application error for every intentional merge. If the current
-                        // Contact survived as master, clear any stale candidate value.
-                        if (res.duplicateContactId == con.Id) {
-                            updateNeeded = false;
-                            continue;
+                    if (performMerge) {
+                        String pairKey = buildContactPairKey(res.masterContactId, res.duplicateContactId);
+                        if (!deferredContactPairKeys.contains(pairKey)) {
+                            deferredContactPairKeys.add(pairKey);
+                            deferredContactMergeCount++;
+                            candidateSetCount++;
+                            mergeLimitReached = hasReachedMergeLimit();
                         }
-                        if (con.Duplicate_Check_Candidate__c != null) {
-                            updateCon.Duplicate_Check_Candidate__c = null;
-                            updateNeeded = true;
-                        }
-                        if (updateNeeded) {
-                            updates.add(updateCon);
-                        }
-                        continue;
+                    } else {
+                        recordEligibleMerge(false);
                     }
 
                     Id candidateId =
@@ -350,13 +349,16 @@ public without sharing class DHM_DuplicateCheckBatch
                         ? res.duplicateContactId
                         : res.masterContactId;
 
-                    if (candidateId != null &&
-                        candidateId != con.Id &&
-                        con.Duplicate_Check_Candidate__c != candidateId) {
+                    if (candidateId != null && candidateId != con.Id &&
+                        (performMerge || con.Duplicate_Check_Candidate__c != candidateId)) {
 
+                        // In merge mode, write the candidate even when unchanged so the
+                        // scheduled worker can isolate candidates touched by this batch run.
                         updateCon.Duplicate_Check_Candidate__c = candidateId;
                         updateNeeded = true;
-                        candidateSetCount++;
+                        if (!performMerge) {
+                            candidateSetCount++;
+                        }
 
                         DHM_SharedCode.OutputDebugLogText(
                             LoggingLevel.DEBUG,
@@ -533,6 +535,24 @@ public without sharing class DHM_DuplicateCheckBatch
             Boolean updateNeeded = false;
 
             try {
+                // NPSP KNOWN RISK - ACCOUNT MERGES FROM BATCH APEX
+                // Historical DHM/NPSP implementations observed that an Account merge can
+                // invoke NPSP Account-delete automation that starts asynchronous work. In
+                // some NPSP versions/configurations this can fail when Database.merge is
+                // reached from Batch Apex (for example, a future/async invocation error).
+                // Account merges currently remain inline because this org's production runs
+                // have completed successfully. If that NPSP failure returns, do NOT try to
+                // solve it by catching the exception or by moving the merge to Queueable.
+                // Recommended fallback: use the same architecture as Contact merging -- let
+                // this batch discover/persist eligible Account pairs, then have a separately
+                // scheduled synchronous worker revalidate and perform Database.merge outside
+                // the Batch/Queueable transaction.
+                //
+                // PSEUDOCODE ONLY - intentionally commented out until the workaround is needed:
+                // if (performMerge) {
+                //     persistAccountMergeCandidate(...);
+                //     deferAccountMergeToScheduledWorker = true;
+                // }
                 DHM_SingleAccountMerge.Result res =
                     DHM_SingleAccountMergeService.evaluateAndMerge(
                         acc.Id,
@@ -757,14 +777,18 @@ public without sharing class DHM_DuplicateCheckBatch
             ', maxMerges=' + String.valueOf(maxMerges)
         );
 
-        DHM_JobLogService.markStoppedForMergeLimit(
-            jobId,
-            processedCount,
-            updatedCount,
-            candidateSetCount,
-            mergeCount,
-            errorCount
-        );
+        if (objectType == 'Contact' && performMerge && deferredContactMergeCount > 0) {
+            scheduleDeferredContactMerges(jobId);
+        } else {
+            DHM_JobLogService.markStoppedForMergeLimit(
+                jobId,
+                processedCount,
+                updatedCount,
+                candidateSetCount,
+                mergeCount,
+                errorCount
+            );
+        }
 
         // Do not abort Salesforce's asynchronous unit-test harness. The existing maxMerges
         // tests still exercise the decision path, while production stops future scopes here.
@@ -773,8 +797,41 @@ public without sharing class DHM_DuplicateCheckBatch
         }
     }
 
+    private void scheduleDeferredContactMerges(Id batchJobId) {
+        if (contactWorkerScheduled || batchJobId == null || deferredContactMergeCount <= 0) {
+            return;
+        }
+
+        contactWorkerScheduled = true;
+        DHM_JobLogService.markContactMergesPending(
+            batchJobId,
+            processedCount,
+            updatedCount,
+            candidateSetCount,
+            errorCount
+        );
+
+        if (!Test.isRunningTest()) {
+            DHM_ContactMergeWorker.scheduleFirstRun(
+                batchJobId,
+                batchStartedAt,
+                matchFieldsCsv,
+                maxMerges
+            );
+        }
+    }
+
     private Boolean hasReachedMergeLimit() {
-        return maxMerges != null && mergeCount >= maxMerges;
+        Integer countForLimit = (objectType == 'Contact' && performMerge)
+            ? deferredContactMergeCount
+            : mergeCount;
+        return maxMerges != null && countForLimit >= maxMerges;
+    }
+
+    private static String buildContactPairKey(Id firstId, Id secondId) {
+        String first = String.valueOf(firstId);
+        String second = String.valueOf(secondId);
+        return first.compareTo(second) <= 0 ? first + ':' + second : second + ':' + first;
     }
 
     private void recordEligibleMerge(Boolean merged) {
@@ -809,13 +866,18 @@ public without sharing class DHM_DuplicateCheckBatch
             ', errorCount=' + String.valueOf(errorCount)
         );
 
-        DHM_JobLogService.completeFromAsyncApexJob(
-            bc.getJobId(),
-            processedCount,
-            updatedCount,
-            candidateSetCount,
-            mergeCount,
-            errorCount
-        );
+        if (objectType == 'Contact' && performMerge && deferredContactMergeCount > 0) {
+            scheduleDeferredContactMerges(bc.getJobId());
+        } else {
+            DHM_JobLogService.completeFromAsyncApexJob(
+                bc.getJobId(),
+                processedCount,
+                updatedCount,
+                candidateSetCount,
+                mergeCount,
+                errorCount,
+                mergeLimitReached
+            );
+        }
     }
 }

@@ -31,6 +31,11 @@
                 <label>Stopped - Merge Limit</label>
             </value>
             <value>
+                <fullName>Contact Merges Pending</fullName>
+                <default>false</default>
+                <label>Contact Merges Pending</label>
+            </value>
+            <value>
                 <fullName>Failed</fullName>
                 <default>false</default>
                 <label>Failed</label>

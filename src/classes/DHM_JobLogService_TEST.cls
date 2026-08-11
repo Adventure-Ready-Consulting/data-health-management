@@ -77,4 +77,13 @@ private class DHM_JobLogService_TEST {
         System.assertEquals('Aborted', row.Apex_Job_Status__c);
         System.assertEquals(0, row.Error_Count__c);
     }
+
+    @IsTest
+    static void intentionalAbortErrorIsNotCountedButRealErrorsRemain() {
+        System.assertEquals(0, DHM_JobLogService.normalizePlatformErrors(1, true));
+        System.assertEquals(1, DHM_JobLogService.normalizePlatformErrors(2, true));
+        System.assertEquals(1, DHM_JobLogService.normalizePlatformErrors(1, false));
+        System.assertEquals(0, DHM_JobLogService.normalizePlatformErrors(null, true));
+    }
+
 }

@@ -126,6 +126,77 @@ public without sharing class DHM_SingleContactMergeService {
         return res;
     }
 
+
+    public static DHM_SingleContactMerge.Result mergeKnownCandidatePair(
+        Id sourceContactId,
+        Id candidateContactId,
+        String matchFieldsCsv
+    ) {
+        DHM_SingleContactMerge.Result res = new DHM_SingleContactMerge.Result();
+        res.masterContactId = null;
+        res.duplicateContactId = null;
+        res.candidateFound = false;
+        res.merged = false;
+        res.message = null;
+        res.duplicateCount = 0;
+
+        if (sourceContactId == null || candidateContactId == null || sourceContactId == candidateContactId) {
+            res.message = 'Invalid Contact merge pair.';
+            return res;
+        }
+
+        Set<Id> pairIds = new Set<Id>{ sourceContactId, candidateContactId };
+        Map<Id, Contact> pairById = new Map<Id, Contact>([
+            SELECT Id, AccountId, CreatedDate, LastModifiedDate
+            FROM Contact
+            WHERE Id IN :pairIds
+        ]);
+
+        Contact sourceContact = pairById.get(sourceContactId);
+        Contact candidateContact = pairById.get(candidateContactId);
+        if (sourceContact == null || candidateContact == null) {
+            res.message = 'One Contact in the queued merge pair no longer exists.';
+            return res;
+        }
+        if (sourceContact.AccountId == null || sourceContact.AccountId != candidateContact.AccountId) {
+            res.message = 'Queued Contact merge pair no longer belongs to the same Account.';
+            return res;
+        }
+
+        Set<Id> eligibleCandidates =
+            DHM_DuplicateRuleCandidateService.filterContactCandidatesByAdditionalFields(
+                sourceContact.Id,
+                new Set<Id>{ candidateContact.Id },
+                matchFieldsCsv
+            );
+        if (!eligibleCandidates.contains(candidateContact.Id)) {
+            res.message = 'Queued Contact merge pair no longer satisfies DHM Additional Match Fields.';
+            return res;
+        }
+
+        Contact winningMaster = sourceContact;
+        Contact winningDuplicate = candidateContact;
+        if (isContactNewer(candidateContact, sourceContact)) {
+            winningMaster = candidateContact;
+            winningDuplicate = sourceContact;
+        }
+
+        res.candidateFound = true;
+        res.masterContactId = winningMaster.Id;
+        res.duplicateContactId = winningDuplicate.Id;
+        res.duplicateCount = 1;
+
+        new DHM_SharedCode_Contact().ObjectsMerge(
+            winningMaster,
+            new List<Contact>{ winningDuplicate }
+        );
+        res.merged = true;
+        res.message =
+            'Merged queued contact ' + String.valueOf(res.duplicateContactId) +
+            ' into master contact ' + String.valueOf(res.masterContactId) + '.';
+        return res;
+    }
+
     private static DHM_SingleContactMerge.Result evaluateAndMergeLegacy(
         Id sourceContactId,
         Boolean performMerge,

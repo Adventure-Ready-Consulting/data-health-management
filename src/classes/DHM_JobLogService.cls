@@ -58,13 +58,79 @@ public without sharing class DHM_JobLogService {
         );
     }
 
+
+    public static void markContactMergesPending(
+        Id batchJobId,
+        Integer processedCount,
+        Integer updatedCount,
+        Integer candidateCount,
+        Integer applicationErrorCount
+    ) {
+        updateLog(
+            batchJobId,
+            'Contact Merges Pending',
+            'Completed',
+            processedCount,
+            updatedCount,
+            candidateCount,
+            0,
+            applicationErrorCount == null ? 0 : applicationErrorCount,
+            null,
+            null,
+            null,
+            null
+        );
+    }
+
+    public static void recordContactMergeWorkerProgress(
+        Id batchJobId,
+        Integer mergesAdded,
+        Integer errorsAdded,
+        Boolean hasMore
+    ) {
+        if (batchJobId == null) return;
+
+        try {
+            String batchJobIdText = String.valueOf(batchJobId);
+            List<DHM_Job_Log__c> rows = [
+                SELECT Id, Merges__c, Error_Count__c
+                FROM DHM_Job_Log__c
+                WHERE Batch_Job_Id__c = :batchJobIdText
+                ORDER BY CreatedDate DESC
+                LIMIT 1
+            ];
+            if (rows.isEmpty()) return;
+
+            DHM_Job_Log__c row = rows[0];
+            Integer currentMerges = row.Merges__c == null ? 0 : row.Merges__c.intValue();
+            Integer currentErrors = row.Error_Count__c == null ? 0 : row.Error_Count__c.intValue();
+            row.Merges__c = currentMerges + (mergesAdded == null ? 0 : mergesAdded);
+            row.Error_Count__c = currentErrors + (errorsAdded == null ? 0 : errorsAdded);
+
+            if (hasMore == true) {
+                row.Status__c = 'Contact Merges Pending';
+                row.Completed__c = null;
+            } else {
+                row.Status__c = row.Error_Count__c > 0 ? 'Completed with Errors' : 'Completed';
+                row.Completed__c = System.now();
+            }
+            update row;
+        } catch (Exception e) {
+            System.debug(LoggingLevel.ERROR,
+                '***** DHM CONTACT MERGE WORKER JOB LOG UPDATE FAILED ***** jobId=' +
+                String.valueOf(batchJobId) + ', message=' + e.getMessage()
+            );
+        }
+    }
+
     public static void completeFromAsyncApexJob(
         Id batchJobId,
         Integer processedCount,
         Integer updatedCount,
         Integer candidateCount,
         Integer mergeCount,
-        Integer applicationErrorCount
+        Integer applicationErrorCount,
+        Boolean mergeLimitReached
     ) {
         if (batchJobId == null) {
             return;
@@ -80,11 +146,24 @@ public without sharing class DHM_JobLogService {
             ];
 
             Integer platformErrors = job.NumberOfErrors == null ? 0 : job.NumberOfErrors;
-            Integer totalErrors = (applicationErrorCount == null ? 0 : applicationErrorCount) + platformErrors;
-            String status = totalErrors > 0 ? 'Completed with Errors' : 'Completed';
+            Boolean intentionalMergeLimitStop = mergeLimitReached == true;
+
+            // Salesforce records the intentional System.abortJob() used by the Maximum Merges
+            // short-circuit as one AsyncApexJob error. That abort is expected control flow,
+            // not a DHM processing error. Subtract only that one platform error so any
+            // independent failed scopes are still preserved for administrators.
+            Integer normalizedPlatformErrors =
+                normalizePlatformErrors(platformErrors, intentionalMergeLimitStop);
+
+            Integer totalErrors =
+                (applicationErrorCount == null ? 0 : applicationErrorCount) +
+                normalizedPlatformErrors;
+            String status = intentionalMergeLimitStop
+                ? 'Stopped - Merge Limit'
+                : (totalErrors > 0 ? 'Completed with Errors' : 'Completed');
             String errorMessage = null;
 
-            if (platformErrors > 0) {
+            if (normalizedPlatformErrors > 0) {
                 errorMessage = String.isBlank(job.ExtendedStatus)
                     ? 'One or more Batch Apex scopes failed. Review Setup > Apex Jobs for Job ID ' + String.valueOf(batchJobId) + '.'
                     : job.ExtendedStatus;
@@ -152,7 +231,7 @@ public without sharing class DHM_JobLogService {
             DHM_Job_Log__c row = rows[0];
             row.Status__c = status;
             row.Apex_Job_Status__c = apexJobStatus;
-            row.Completed__c = System.now();
+            row.Completed__c = (status == 'Started' || status == 'Contact Merges Pending') ? null : System.now();
             row.Records_Processed__c = processedCount;
             row.Records_Updated__c = updatedCount;
             row.Candidates_Found__c = candidateCount;
@@ -169,6 +248,16 @@ public without sharing class DHM_JobLogService {
                 ', message=' + e.getMessage()
             );
         }
+    }
+
+
+    @TestVisible
+    private static Integer normalizePlatformErrors(Integer platformErrors, Boolean mergeLimitReached) {
+        Integer normalized = platformErrors == null ? 0 : platformErrors;
+        if (mergeLimitReached == true && normalized > 0) {
+            normalized--;
+        }
+        return normalized;
     }
 
     @TestVisible

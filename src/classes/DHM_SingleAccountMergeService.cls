@@ -924,6 +924,13 @@ public without sharing class DHM_SingleAccountMergeService {
 
     @TestVisible
     static void mergeAccounts(Id targetAccountId, Id sourceAccountId) {
+        // NPSP NOTE: This merge may currently be invoked from DHM_DuplicateCheckBatch.
+        // Older DHM/NPSP code documented Account-delete automation starting async work
+        // that was not safe from a Batch Apex context. Current production behavior has
+        // been stable, so Account merging is intentionally left inline for now. If NPSP
+        // begins throwing future/queueable/async-context errors here, defer Account merge
+        // execution to a separately scheduled synchronous worker (after revalidation),
+        // matching the NPSP-safe Contact merge pattern. Do not move it to Queueable.
         Account target = [SELECT Id FROM Account WHERE Id = :targetAccountId LIMIT 1];
         Account source = [SELECT Id FROM Account WHERE Id = :sourceAccountId LIMIT 1];
 
