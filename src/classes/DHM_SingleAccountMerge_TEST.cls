@@ -41,6 +41,7 @@ private class DHM_SingleAccountMerge_TEST {
                 false,
                 'Birthdate',
                 null,
+                null,
                 false);
         Test.stopTest();
 
@@ -79,6 +80,7 @@ private class DHM_SingleAccountMerge_TEST {
                 false,
                 'Birthdate',
                 null,
+                null,
                 false);
 
         System.assertNotEquals(null, result);
@@ -98,6 +100,7 @@ private class DHM_SingleAccountMerge_TEST {
             DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false,
+                null,
                 null,
                 null,
                 false);
@@ -134,6 +137,7 @@ private class DHM_SingleAccountMerge_TEST {
                 false,
                 'Birthdate',
                 null,
+                null,
                 false);
 
         System.assertEquals(false, result.candidateFound);
@@ -167,6 +171,7 @@ private class DHM_SingleAccountMerge_TEST {
                 source.Id,
                 false,
                 'FirstName,LastName,Birthdate',
+                null,
                 null,
                 false);
 
@@ -283,6 +288,7 @@ private class DHM_SingleAccountMerge_TEST {
                 true,
                 null,
                 null,
+                null,
                 false);
         Test.stopTest();
 
@@ -324,7 +330,7 @@ private class DHM_SingleAccountMerge_TEST {
         };
 
         DHM_SingleAccountMerge.Result result =
-            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, false);
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, null, false);
 
         System.assertEquals(true, result.candidateFound);
         System.assertEquals(target.Id, result.targetAccountId);
@@ -346,6 +352,7 @@ private class DHM_SingleAccountMerge_TEST {
                 source.Id,
                 false,
                 'Email',
+                null,
                 null,
                 false);
 
@@ -370,7 +377,7 @@ private class DHM_SingleAccountMerge_TEST {
         };
 
         DHM_SingleAccountMerge.Result result =
-            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, false);
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, null, false);
 
         System.assertEquals(true, result.candidateFound);
         System.assertEquals(targetTwoMatches.Id, result.targetAccountId);
@@ -394,6 +401,7 @@ private class DHM_SingleAccountMerge_TEST {
                 false,
                 'FirstName,LastName,Birthdate',
                 'Birthdate > ' + String.valueOf(Date.today().addYears(-18)),
+                null,
                 false);
 
         System.assertEquals(false, result.candidateFound);
@@ -420,6 +428,7 @@ private class DHM_SingleAccountMerge_TEST {
                 false,
                 'FirstName,LastName,Birthdate',
                 'Birthdate > ' + String.valueOf(Date.today().addYears(-18)),
+                null,
                 false);
 
         System.assertEquals(false, result.candidateFound);
@@ -496,7 +505,7 @@ private class DHM_SingleAccountMerge_TEST {
 
         Test.startTest();
         DHM_SingleAccountMerge.Result result =
-            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, false);
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, null, false);
         Test.stopTest();
 
         DHM_DuplicateRuleCandidateService.clearTestCandidates();
@@ -534,6 +543,7 @@ private class DHM_SingleAccountMerge_TEST {
                 false,
                 null,
                 null,
+                null,
                 true
             );
         Test.stopTest();
@@ -566,6 +576,7 @@ private class DHM_SingleAccountMerge_TEST {
             DHM_SingleAccountMergeService.evaluateAndMerge(
                 source.Id,
                 false,
+                null,
                 null,
                 null,
                 true
@@ -602,7 +613,7 @@ private class DHM_SingleAccountMerge_TEST {
 
         Test.startTest();
         DHM_SingleAccountMerge.Result result =
-            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, false);
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, null, false);
         Test.stopTest();
 
         DHM_DuplicateRuleCandidateService.clearTestCandidates();
@@ -635,12 +646,131 @@ private class DHM_SingleAccountMerge_TEST {
 
         Test.startTest();
         DHM_SingleAccountMerge.Result result =
-            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, false);
+            DHM_SingleAccountMergeService.evaluateAndMerge(source.Id, false, null, null, null, false);
         Test.stopTest();
 
         DHM_DuplicateRuleCandidateService.clearTestCandidates();
 
         System.assertEquals(false, result.candidateFound);
+    }
+
+    @IsTest
+    static void testAllowedUnmatchedContactCriteriaAllowsChildButRequiresAdults() {
+        Account source = new Account(Name = 'Source Adult Plus Child');
+        Account target = new Account(Name = 'Target Adult Only');
+        insert new List<Account>{ source, target };
+
+        Contact sourceAdult = new Contact(
+            AccountId = source.Id, LastName = 'Adult', Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        Contact sourceChild = new Contact(
+            AccountId = source.Id, LastName = 'Child', Birthdate = Date.newInstance(2015, 1, 1)
+        );
+        Contact targetAdult = new Contact(
+            AccountId = target.Id, LastName = 'Adult', Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        insert new List<Contact>{ sourceAdult, sourceChild, targetAdult };
+
+        DHM_DuplicateRuleCandidateService.setTestCandidates(new Map<Id, Set<Id>>{
+            sourceAdult.Id => new Set<Id>{ targetAdult.Id },
+            sourceChild.Id => new Set<Id>(),
+            targetAdult.Id => new Set<Id>{ sourceAdult.Id }
+        });
+
+        Test.startTest();
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
+                source.Id,
+                false,
+                null,
+                null,
+                'Birthdate > 2010-01-01',
+                false
+            );
+        Test.stopTest();
+        DHM_DuplicateRuleCandidateService.clearTestCandidates();
+
+        System.assertEquals(true, result.candidateFound);
+    }
+
+    @IsTest
+    static void testAllowedUnmatchedContactCriteriaRejectsUnmatchedAdult() {
+        Account source = new Account(Name = 'Source With Extra Adult');
+        Account target = new Account(Name = 'Target Missing Adult');
+        insert new List<Account>{ source, target };
+
+        Contact sourceAdultOne = new Contact(
+            AccountId = source.Id, LastName = 'Adult One', Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        Contact sourceAdultTwo = new Contact(
+            AccountId = source.Id, LastName = 'Adult Two', Birthdate = Date.newInstance(1985, 1, 1)
+        );
+        Contact targetAdultOne = new Contact(
+            AccountId = target.Id, LastName = 'Adult One', Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        insert new List<Contact>{ sourceAdultOne, sourceAdultTwo, targetAdultOne };
+
+        DHM_DuplicateRuleCandidateService.setTestCandidates(new Map<Id, Set<Id>>{
+            sourceAdultOne.Id => new Set<Id>{ targetAdultOne.Id },
+            sourceAdultTwo.Id => new Set<Id>(),
+            targetAdultOne.Id => new Set<Id>{ sourceAdultOne.Id }
+        });
+
+        Test.startTest();
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
+                source.Id,
+                false,
+                null,
+                null,
+                'Birthdate > 2010-01-01',
+                false
+            );
+        Test.stopTest();
+        DHM_DuplicateRuleCandidateService.clearTestCandidates();
+
+        System.assertEquals(false, result.candidateFound);
+        System.assert(result.message.contains('Allowed Unmatched Contact Criteria'));
+    }
+
+    @IsTest
+    static void testRequireAllMatchingContactsOverridesAllowedUnmatchedCriteria() {
+        Account source = new Account(Name = 'Strict Source Adult Child');
+        Account target = new Account(Name = 'Strict Target Adult');
+        insert new List<Account>{ source, target };
+
+        Contact sourceAdult = new Contact(
+            AccountId = source.Id, LastName = 'Adult', Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        Contact sourceChild = new Contact(
+            AccountId = source.Id, LastName = 'Child', Birthdate = Date.newInstance(2015, 1, 1)
+        );
+        Contact targetAdult = new Contact(
+            AccountId = target.Id, LastName = 'Adult', Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        insert new List<Contact>{ sourceAdult, sourceChild, targetAdult };
+
+        DHM_DuplicateRuleCandidateService.setTestCandidates(new Map<Id, Set<Id>>{
+            sourceAdult.Id => new Set<Id>{ targetAdult.Id },
+            sourceChild.Id => new Set<Id>(),
+            targetAdult.Id => new Set<Id>{ sourceAdult.Id }
+        });
+
+        Test.startTest();
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.evaluateAndMerge(
+                source.Id,
+                false,
+                null,
+                null,
+                'Birthdate > 2010-01-01',
+                true
+            );
+        Test.stopTest();
+        DHM_DuplicateRuleCandidateService.clearTestCandidates();
+
+        System.assertEquals(false, result.candidateFound);
+        System.assert(result.message.contains('same number of Contacts'));
     }
 
     @IsTest

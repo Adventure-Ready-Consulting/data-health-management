@@ -107,6 +107,7 @@ private class DHM_ContactMergeWorker_TEST {
             true,
             'Birthdate',
             null,
+            null,
             1,
             firstContact.Id,
             false

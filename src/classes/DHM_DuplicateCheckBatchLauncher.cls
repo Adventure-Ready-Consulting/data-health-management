@@ -36,9 +36,15 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
 
         @InvocableVariable(
             label='Contact Exclusion Criteria'
-            description='Validated Contact WHERE criteria. If any Contact in either Account matches, the Account merge is skipped. Example: C501_Age_Calculate__c < 18'
+            description='Validated Contact WHERE criteria. If any Contact in either Account matches, the Account merge is skipped. Use this only for hard-stop conditions; leave blank when no Contact condition should disqualify the household. Example: Do_Not_Auto_Merge__c = true'
         )
         public String contactExclusionCriteria;
+
+        @InvocableVariable(
+            label='Account Merge Allowed Unmatched Contact Criteria'
+            description='Account merges only. Optional validated Contact criteria identifying Contacts that may remain unmatched without blocking an Account merge. Example: C501_Age_Calculate__c < 18. Leave blank for the existing asymmetric household behavior. Ignored when Account Merge Require All Matching Contacts is true.'
+        )
+        public String accountMergeAllowedUnmatchedContactCriteria;
 
         @InvocableVariable(
             label='Account Merge Require All Matching Contacts'
@@ -118,6 +124,7 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                 ', performMerge=' + String.valueOf(req.performMerge) +
                 ', additionalMatchFieldsCsv=' + req.additionalMatchFieldsCsv +
                 ', contactExclusionCriteria=' + req.contactExclusionCriteria +
+                ', accountMergeAllowedUnmatchedContactCriteria=' + req.accountMergeAllowedUnmatchedContactCriteria +
                 ', accountMergeRequireAllMatchingContacts=' + String.valueOf(req.accountMergeRequireAllMatchingContacts) +
                 ', maxMerges=' + String.valueOf(req.maxMerges) +
                 ', recordId=' + String.valueOf(req.recordId) +
@@ -206,6 +213,7 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                 ', performMerge=' + String.valueOf(req.performMerge) +
                 ', additionalMatchFields=' + req.additionalMatchFieldsCsv +
                 ', contactExclusionCriteria=' + req.contactExclusionCriteria +
+                ', accountMergeAllowedUnmatchedContactCriteria=' + req.accountMergeAllowedUnmatchedContactCriteria +
                 ', accountMergeRequireAllMatchingContacts=' + String.valueOf(req.accountMergeRequireAllMatchingContacts)
             );
             Id batchJobId = Database.executeBatch(
@@ -214,6 +222,7 @@ public with sharing class DHM_DuplicateCheckBatchLauncher {
                     req.performMerge,
                     req.additionalMatchFieldsCsv,
                     req.contactExclusionCriteria,
+                    req.accountMergeAllowedUnmatchedContactCriteria,
                     req.maxMerges,
                     req.recordId,
                     req.accountMergeRequireAllMatchingContacts

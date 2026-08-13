@@ -256,6 +256,9 @@ private class DHM_DuplicateCheckBatchLauncher_TEST {
     @IsTest
     static void accountRequireAllMatchingContactsInputDefaultsSafely() {
         DHM_DuplicateCheckBatchLauncher.Request req = new DHM_DuplicateCheckBatchLauncher.Request();
+        System.assertEquals(null, req.accountMergeAllowedUnmatchedContactCriteria);
+        req.accountMergeAllowedUnmatchedContactCriteria = 'Birthdate > 2010-01-01';
+        System.assertEquals('Birthdate > 2010-01-01', req.accountMergeAllowedUnmatchedContactCriteria);
         System.assertEquals(null, req.accountMergeRequireAllMatchingContacts);
         req.accountMergeRequireAllMatchingContacts = true;
         System.assertEquals(true, req.accountMergeRequireAllMatchingContacts);

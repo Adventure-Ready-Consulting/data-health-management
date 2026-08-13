@@ -30,6 +30,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             null,
             null,
             null,
+            null,
             false);
         Test.stopTest();
 
@@ -80,6 +81,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             null,
             null,
             null,
+            null,
             false);
         Test.stopTest();
 
@@ -113,6 +115,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             null,
             null,
             null,
+            null,
             false);
         Test.stopTest();
 
@@ -143,6 +146,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             'Contact',
             false,
             'FirstName,LastName,Birthdate',
+            null,
             null,
             null,
             null,
@@ -205,6 +209,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             null,
             null,
             null,
+            null,
             false);
         Test.stopTest();
 
@@ -236,6 +241,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             'Account',
             false,
             'FirstName,LastName,Birthdate',
+            null,
             null,
             null,
             null,
@@ -273,6 +279,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             null,
             null,
             null,
+            null,
             false);
         Test.stopTest();
 
@@ -297,6 +304,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             'Opportunity',
             false,
             'Name',
+            null,
             null,
             null,
             null,
@@ -329,6 +337,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             'Contact',
             false,
             '',
+            null,
             null,
             null,
             null,
@@ -382,6 +391,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             false,
             null,
             null,
+            null,
             1,
             sourceAcct.Id,
             false);
@@ -425,6 +435,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             'Contact',
             false,
             'FirstName,LastName,Birthdate',
+            null,
             null,
             1,
             null,
@@ -482,6 +493,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             false,
             'Birthdate',
             null,
+            null,
             1,
             sourceAcct.Id,
             false);
@@ -535,6 +547,7 @@ private class DHM_DuplicateCheckBatch_TEST {
             'Contact',
             false,
             'Birthdate',
+            null,
             null,
             1,
             sourceCon.Id,

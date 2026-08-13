@@ -5,7 +5,8 @@ Id jobId = DHM_DuplicateCheckBatch.startBatch(
     'Account',
     false,
     null,
-    'C501_Age_Calculate__c < 18',
+    null, // Contact Exclusion Criteria
+    'C501_Age_Calculate__c < 18', // Account Merge Allowed Unmatched Contact Criteria
     1,
     null, // optional source Account/Contact Id; use an Id here for a focused test
     false  // Account Merge Require All Matching Contacts
@@ -26,6 +27,7 @@ public without sharing class DHM_DuplicateCheckBatch
     private Boolean performMerge;
     private String matchFieldsCsv;
     private String contactExclusionCriteria;
+    private String accountMergeAllowedUnmatchedContactCriteria;
     private Integer maxMerges;
     private Id sourceRecordId;
     private Boolean accountMergeRequireAllMatchingContacts;
@@ -46,6 +48,7 @@ public without sharing class DHM_DuplicateCheckBatch
         Boolean performMerge,
         String matchFieldsCsv,
         String contactExclusionCriteria,
+        String accountMergeAllowedUnmatchedContactCriteria,
         Integer maxMerges,
         Id sourceRecordId,
         Boolean accountMergeRequireAllMatchingContacts
@@ -54,6 +57,7 @@ public without sharing class DHM_DuplicateCheckBatch
         this.performMerge = performMerge == null ? false : performMerge;
         this.matchFieldsCsv = matchFieldsCsv;
         this.contactExclusionCriteria = contactExclusionCriteria;
+        this.accountMergeAllowedUnmatchedContactCriteria = accountMergeAllowedUnmatchedContactCriteria;
         this.maxMerges = (maxMerges == null || maxMerges <= 0) ? null : maxMerges;
         this.sourceRecordId = sourceRecordId;
         this.accountMergeRequireAllMatchingContacts = accountMergeRequireAllMatchingContacts == true;
@@ -64,6 +68,7 @@ public without sharing class DHM_DuplicateCheckBatch
             ', performMerge=' + String.valueOf(this.performMerge) +
             ', matchFieldsCsv=' + matchFieldsCsv +
             ', contactExclusionCriteria=' + this.contactExclusionCriteria +
+            ', accountMergeAllowedUnmatchedContactCriteria=' + this.accountMergeAllowedUnmatchedContactCriteria +
             ', maxMerges=' + String.valueOf(this.maxMerges) +
             ', sourceRecordId=' + String.valueOf(this.sourceRecordId) +
             ', accountMergeRequireAllMatchingContacts=' + String.valueOf(this.accountMergeRequireAllMatchingContacts)
@@ -75,6 +80,7 @@ public without sharing class DHM_DuplicateCheckBatch
         Boolean performMerge,
         String matchFieldsCsv,
         String contactExclusionCriteria,
+        String accountMergeAllowedUnmatchedContactCriteria,
         Integer maxMerges,
         Id sourceRecordId,
         Boolean accountMergeRequireAllMatchingContacts
@@ -89,6 +95,7 @@ public without sharing class DHM_DuplicateCheckBatch
             ', performMerge=' + String.valueOf(performMerge == null ? false : performMerge) +
             ', matchFieldsCsv=' + matchFieldsCsv +
             ', contactExclusionCriteria=' + contactExclusionCriteria +
+            ', accountMergeAllowedUnmatchedContactCriteria=' + accountMergeAllowedUnmatchedContactCriteria +
             ', maxMerges=' + String.valueOf(maxMerges) +
             ', sourceRecordId=' + String.valueOf(sourceRecordId) +
             ', accountMergeRequireAllMatchingContacts=' + String.valueOf(accountMergeRequireAllMatchingContacts == true) +
@@ -101,6 +108,7 @@ public without sharing class DHM_DuplicateCheckBatch
                 performMerge,
                 matchFieldsCsv,
                 contactExclusionCriteria,
+                accountMergeAllowedUnmatchedContactCriteria,
                 maxMerges,
                 sourceRecordId,
                 accountMergeRequireAllMatchingContacts
@@ -559,6 +567,7 @@ public without sharing class DHM_DuplicateCheckBatch
                         performMerge,
                         matchFieldsCsv,
                         contactExclusionCriteria,
+                        accountMergeAllowedUnmatchedContactCriteria,
                         accountMergeRequireAllMatchingContacts
                     );
 

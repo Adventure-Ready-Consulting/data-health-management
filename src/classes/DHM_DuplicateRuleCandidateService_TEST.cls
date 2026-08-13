@@ -53,6 +53,7 @@ private class DHM_DuplicateRuleCandidateService_TEST {
                 false,
                 null,
                 null,
+                null,
                 false);
 
         System.assertEquals(true, result.candidateFound);

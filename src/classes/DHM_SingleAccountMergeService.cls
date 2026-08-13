@@ -19,9 +19,13 @@ public without sharing class DHM_SingleAccountMergeService {
         Boolean performMerge,
         String matchFieldsCsv,
         String contactExclusionCriteria,
+        String accountMergeAllowedUnmatchedContactCriteria,
         Boolean accountMergeRequireAllMatchingContacts
     ) {
         Boolean requireAllMatchingContacts = accountMergeRequireAllMatchingContacts == true;
+        String allowedUnmatchedCriteria = requireAllMatchingContacts
+            ? null
+            : accountMergeAllowedUnmatchedContactCriteria;
         DHM_SingleAccountMerge.Result res = new DHM_SingleAccountMerge.Result();
         res.sourceAccountId = sourceAccountId;
         res.targetAccountId = null;
@@ -66,6 +70,7 @@ public without sharing class DHM_SingleAccountMergeService {
         }
 
         validateContactExclusionCriteria(contactExclusionCriteria);
+        validateContactExclusionCriteria(allowedUnmatchedCriteria);
         if (accountMatchesContactExclusion(sourceAccount.Id, contactExclusionCriteria)) {
             res.message =
                 'Account merge skipped because the source account contains a Contact matching the exclusion criteria.';
@@ -79,6 +84,7 @@ public without sharing class DHM_SingleAccountMergeService {
                 sourceContacts,
                 matchFields,
                 contactExclusionCriteria,
+                allowedUnmatchedCriteria,
                 requireAllMatchingContacts
             );
         } else {
@@ -86,6 +92,7 @@ public without sharing class DHM_SingleAccountMergeService {
                 sourceAccount,
                 sourceContacts,
                 contactExclusionCriteria,
+                allowedUnmatchedCriteria,
                 matchFieldsCsv,
                 requireAllMatchingContacts
             );
@@ -94,7 +101,9 @@ public without sharing class DHM_SingleAccountMergeService {
         if (matchBundle == null) {
             res.message = requireAllMatchingContacts
                 ? 'No target account found where both Accounts have the same number of Contacts and every Contact has a distinct match.'
-                : 'No target account found where all Contacts in one Account have distinct matches in the other Account.';
+                : (!String.isBlank(allowedUnmatchedCriteria)
+                    ? 'No target account found where every Contact that does not meet Account Merge Allowed Unmatched Contact Criteria has a distinct match in the other Account.'
+                    : 'No target account found where all Contacts in one Account have distinct matches in the other Account.');
             return res;
         }
 
@@ -186,7 +195,7 @@ public without sharing class DHM_SingleAccountMergeService {
         List<String> matchFields,
         String contactExclusionCriteria
     ) {
-        return findTargetAccountForSource(sourceAccount, sourceContacts, matchFields, contactExclusionCriteria, false);
+        return findTargetAccountForSource(sourceAccount, sourceContacts, matchFields, contactExclusionCriteria, null, false);
     }
 
     @TestVisible
@@ -195,6 +204,7 @@ public without sharing class DHM_SingleAccountMergeService {
         List<Contact> sourceContacts,
         List<String> matchFields,
         String contactExclusionCriteria,
+        String accountMergeAllowedUnmatchedContactCriteria,
         Boolean accountMergeRequireAllMatchingContacts
     ) {
         if (sourceAccount == null || sourceAccount.Id == null ||
@@ -352,6 +362,7 @@ public without sharing class DHM_SingleAccountMergeService {
         Account sourceAccount,
         List<Contact> sourceContacts,
         String contactExclusionCriteria,
+        String accountMergeAllowedUnmatchedContactCriteria,
         String additionalMatchFieldsCsv,
         Boolean accountMergeRequireAllMatchingContacts
     ) {
@@ -437,7 +448,8 @@ public without sharing class DHM_SingleAccountMergeService {
                 sourceContacts,
                 candidate.Id,
                 candidate.Contacts,
-                additionalMatchFieldsCsv
+                additionalMatchFieldsCsv,
+                accountMergeAllowedUnmatchedContactCriteria
             );
 
             MatchBundle candidateIntoSource = buildDuplicateRuleMatchBundle(
@@ -445,12 +457,26 @@ public without sharing class DHM_SingleAccountMergeService {
                 candidate.Contacts,
                 sourceAccount.Id,
                 sourceContacts,
-                additionalMatchFieldsCsv
+                additionalMatchFieldsCsv,
+                accountMergeAllowedUnmatchedContactCriteria
             );
 
-            MatchBundle eligibleBundle = sourceIntoCandidate != null
-                ? sourceIntoCandidate
-                : candidateIntoSource;
+            MatchBundle eligibleBundle;
+            if (!String.isBlank(accountMergeAllowedUnmatchedContactCriteria)) {
+                // When allowed-unmatched criteria are configured, required Contacts on BOTH
+                // Accounts must match. Only Contacts satisfying the configured criteria may
+                // remain unmatched. This prevents an extra unmatched adult on either side
+                // from being accepted merely because the other household is smaller.
+                eligibleBundle = (sourceIntoCandidate != null && candidateIntoSource != null)
+                    ? sourceIntoCandidate
+                    : null;
+            } else {
+                // Existing asymmetric behavior: every Contact on either the smaller source
+                // or smaller candidate household may define the required matched set.
+                eligibleBundle = sourceIntoCandidate != null
+                    ? sourceIntoCandidate
+                    : candidateIntoSource;
+            }
             if (eligibleBundle != null) {
                 Boolean sourceIsNewer = isAccountNewer(sourceAccount, candidate);
                 if (sourceIsNewer && eligibleBundle.targetAccountId != sourceAccount.Id) {
@@ -497,7 +523,8 @@ public without sharing class DHM_SingleAccountMergeService {
         List<Contact> duplicateContacts,
         Id masterAccountId,
         List<Contact> masterContacts,
-        String additionalMatchFieldsCsv
+        String additionalMatchFieldsCsv,
+        String accountMergeAllowedUnmatchedContactCriteria
     ) {
         if (duplicateContacts == null || duplicateContacts.isEmpty() ||
             masterContacts == null || masterContacts.isEmpty()) {
@@ -516,7 +543,14 @@ public without sharing class DHM_SingleAccountMergeService {
         );
         Map<Id, Contact> masterContactsById = new Map<Id, Contact>(masterContacts);
 
+        Set<Id> allowedUnmatchedContactIds = findContactIdsMatchingCriteria(
+            duplicateContactIds,
+            accountMergeAllowedUnmatchedContactCriteria
+        );
+
         Map<Id, List<Id>> eligibleMasterIdsByDuplicateId = new Map<Id, List<Id>>();
+        List<Id> requiredDuplicateIds = new List<Id>();
+        List<Id> optionalDuplicateIds = new List<Id>();
         for (Contact duplicateContact : duplicateContacts) {
             List<Id> eligibleIds = new List<Id>();
             Set<Id> possibleIds = rawCandidates.get(duplicateContact.Id);
@@ -528,16 +562,27 @@ public without sharing class DHM_SingleAccountMergeService {
                 }
             }
             eligibleIds.sort();
-            if (eligibleIds.isEmpty()) {
+
+            Boolean mayRemainUnmatched = allowedUnmatchedContactIds.contains(duplicateContact.Id);
+            if (eligibleIds.isEmpty() && !mayRemainUnmatched) {
                 return null;
             }
-            eligibleMasterIdsByDuplicateId.put(duplicateContact.Id, eligibleIds);
+            if (!eligibleIds.isEmpty()) {
+                eligibleMasterIdsByDuplicateId.put(duplicateContact.Id, eligibleIds);
+                if (mayRemainUnmatched) {
+                    optionalDuplicateIds.add(duplicateContact.Id);
+                } else {
+                    requiredDuplicateIds.add(duplicateContact.Id);
+                }
+            }
         }
 
+        requiredDuplicateIds.sort();
+        optionalDuplicateIds.sort();
         Map<Id, Id> duplicateIdByMasterId = new Map<Id, Id>();
-        List<Id> orderedDuplicateIds = new List<Id>(duplicateContactIds);
-        orderedDuplicateIds.sort();
-        for (Id duplicateContactId : orderedDuplicateIds) {
+
+        // Required Contacts must all obtain distinct matches.
+        for (Id duplicateContactId : requiredDuplicateIds) {
             if (!assignDistinctMasterContact(
                 duplicateContactId,
                 eligibleMasterIdsByDuplicateId,
@@ -547,6 +592,22 @@ public without sharing class DHM_SingleAccountMergeService {
                 return null;
             }
         }
+
+        // Allowed-unmatched Contacts are optional. Match them when a distinct counterpart
+        // is available so the later Contact duplicate-management run can merge the pair,
+        // but do not reject the Account pair if no distinct counterpart remains.
+        for (Id duplicateContactId : optionalDuplicateIds) {
+            assignDistinctMasterContact(
+                duplicateContactId,
+                eligibleMasterIdsByDuplicateId,
+                duplicateIdByMasterId,
+                new Set<Id>()
+            );
+        }
+
+        List<Id> orderedDuplicateIds = new List<Id>();
+        orderedDuplicateIds.addAll(requiredDuplicateIds);
+        orderedDuplicateIds.addAll(optionalDuplicateIds);
 
         Map<Id, Id> masterIdByDuplicateId = new Map<Id, Id>();
         for (Id masterContactId : duplicateIdByMasterId.keySet()) {
@@ -561,11 +622,13 @@ public without sharing class DHM_SingleAccountMergeService {
         bundle.sourceAccountId = duplicateAccountId;
         bundle.targetAccountId = masterAccountId;
         for (Id duplicateContactId : orderedDuplicateIds) {
+            Id masterContactId = masterIdByDuplicateId.get(duplicateContactId);
+            if (masterContactId == null) {
+                continue;
+            }
             ContactMatch cm = new ContactMatch();
             cm.sourceContact = duplicateContactsById.get(duplicateContactId);
-            cm.targetContact = masterContactsById.get(
-                masterIdByDuplicateId.get(duplicateContactId)
-            );
+            cm.targetContact = masterContactsById.get(masterContactId);
             bundle.contactMatches.add(cm);
         }
         return bundle;
@@ -614,6 +677,24 @@ public without sharing class DHM_SingleAccountMergeService {
             }
         }
         return true;
+    }
+
+    @TestVisible
+    static Set<Id> findContactIdsMatchingCriteria(Set<Id> contactIds, String criteria) {
+        Set<Id> result = new Set<Id>();
+        if (contactIds == null || contactIds.isEmpty() || String.isBlank(criteria)) {
+            return result;
+        }
+
+        String normalizedCriteria = validateContactExclusionCriteria(criteria);
+        String soql =
+            'SELECT Id FROM Contact ' +
+            'WHERE Id IN :contactIds AND (' + normalizedCriteria + ')';
+
+        for (Contact con : Database.query(soql)) {
+            result.add(con.Id);
+        }
+        return result;
     }
 
     @TestVisible
