@@ -2,6 +2,12 @@
 private class DHM_ContactMergeWorker_TEST {
 
     @IsTest
+    static void testWorkerIsLimitedToOnePhysicalMergePerRun() {
+        System.assertEquals(1, DHM_ContactMergeWorker.MERGES_PER_RUN);
+    }
+
+
+    @IsTest
     static void testWorkerMergesQueuedContactOutsideBatch() {
         Account acct = new Account(Name = 'Worker Household');
         insert acct;

@@ -37,11 +37,19 @@ public without sharing class DHM_DuplicateCheckBatch
     private Integer candidateSetCount = 0;
     private Integer mergeCount = 0;
     private Integer deferredContactMergeCount = 0;
+    private Integer stagedAccountMergeCount = 0;
     private Set<String> deferredContactPairKeys = new Set<String>();
     private Datetime batchStartedAt;
     private Boolean contactWorkerScheduled = false;
     private Boolean mergeLimitReached = false;
     private Integer errorCount = 0;
+
+    // Database.Stateful preserves this summary across batch execute() transactions so
+    // administrators can see record-level application errors directly on DHM Job Log.
+    // Keep below the 32,768-character Long Text Area limit with room for a truncation note.
+    private static final Integer APPLICATION_ERROR_DETAILS_MAX = 30000;
+    private String applicationErrorDetails;
+    private Boolean applicationErrorDetailsTruncated = false;
 
     public DHM_DuplicateCheckBatch(
         String objectType,
@@ -127,7 +135,8 @@ public without sharing class DHM_DuplicateCheckBatch
                 (sourceRecordId == null ? '' : ' WHERE Id = :sourceRecordId');
         } else if (objectType == 'Account') {
             soql =
-                'SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c ' +
+                'SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c, ' +
+                'DHM_Pending_Merge__c, DHM_Merge_After__c, DHM_Merge_Into_Account__c ' +
                 'FROM Account' +
                 (sourceRecordId == null ? '' : ' WHERE Id = :sourceRecordId');
         } else {
@@ -388,11 +397,14 @@ public without sharing class DHM_DuplicateCheckBatch
                 }
             } catch (Exception e) {
                 errorCount++;
+                String errorText =
+                    'processContacts Contact Id=' + String.valueOf(con.Id) +
+                    ', exceptionType=' + e.getTypeName() +
+                    ', message=' + String.valueOf(e.getMessage());
+                recordApplicationError(errorText);
                 DHM_SharedCode.LogAndSetError(
                     updateCon,
-                    '***** DHM_DuplicateCheckBatch::processContacts Contact Id=' +
-                    String.valueOf(con.Id) +
-                    ' Exception: ' + String.valueOf(e.getMessage())
+                    '***** DHM_DuplicateCheckBatch::' + errorText
                 );
                 updateNeeded = true;
             }
@@ -418,12 +430,15 @@ public without sharing class DHM_DuplicateCheckBatch
             } else {
                 errorCount++;
                 for (Database.Error err : saveResults[i].getErrors()) {
-                    DHM_SharedCode.OutputDebugLogText(
-                        LoggingLevel.DEBUG,
-                        '***** DHM_DuplicateCheckBatch::saveContactUpdates error Contact Id=' +
-                        String.valueOf(updates[i].Id) +
+                    String errorText =
+                        'saveContactUpdates Contact Id=' + String.valueOf(updates[i].Id) +
                         ', statusCode=' + String.valueOf(err.getStatusCode()) +
-                        ', message=' + err.getMessage()
+                        ', fields=' + String.valueOf(err.getFields()) +
+                        ', message=' + err.getMessage();
+                    recordApplicationError(errorText);
+                    DHM_SharedCode.OutputDebugLogText(
+                        LoggingLevel.ERROR,
+                        '***** DHM_DuplicateCheckBatch::' + errorText
                     );
                 }
             }
@@ -448,7 +463,8 @@ public without sharing class DHM_DuplicateCheckBatch
         Map<Id, Account> accountsById = new Map<Id, Account>();
         if (!accountIds.isEmpty()) {
             for (Account acc : [
-                SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c
+                SELECT Id, Duplicate_Check_Candidate__c, Duplicate_Check_Error__c,
+                       DHM_Pending_Merge__c, DHM_Merge_After__c, DHM_Merge_Into_Account__c
                 FROM Account
                 WHERE Id IN :accountIds
             ]) {
@@ -499,8 +515,68 @@ public without sharing class DHM_DuplicateCheckBatch
                 '***** DHM_DuplicateCheckBatch::processAccounts evaluating Account Id=' +
                 String.valueOf(acc.Id) +
                 ', existing Duplicate_Check_Candidate__c=' +
-                String.valueOf(acc.Duplicate_Check_Candidate__c)
+                String.valueOf(acc.Duplicate_Check_Candidate__c) +
+                ', DHM_Pending_Merge__c=' + String.valueOf(acc.DHM_Pending_Merge__c) +
+                ', DHM_Merge_After__c=' + String.valueOf(acc.DHM_Merge_After__c) +
+                ', DHM_Merge_Into_Account__c=' + String.valueOf(acc.DHM_Merge_Into_Account__c)
             );
+
+            // A staged duplicate Account is intentionally excluded from duplicate discovery.
+            // In merge mode, once its one-day hold has elapsed, revalidate that it has no
+            // Contacts and then perform the real Account merge.
+            if (acc.DHM_Pending_Merge__c == true) {
+                if (performMerge &&
+                    acc.DHM_Merge_After__c != null &&
+                    acc.DHM_Merge_After__c <= Date.today()) {
+                    try {
+                        DHM_SingleAccountMerge.Result pendingResult =
+                            DHM_SingleAccountMergeService.mergePendingAccount(acc.Id);
+
+                        if (pendingResult != null && pendingResult.merged == true) {
+                            recordEligibleMerge(true);
+                            candidateSetCount++;
+                            DHM_SharedCode.OutputDebugLogText(
+                                LoggingLevel.DEBUG,
+                                '***** DHM_DuplicateCheckBatch::processAccounts merged staged Account Id=' +
+                                String.valueOf(acc.Id) + ', masterId=' +
+                                String.valueOf(pendingResult.masterAccountId)
+                            );
+                        } else {
+                            DHM_SharedCode.OutputDebugLogText(
+                                LoggingLevel.DEBUG,
+                                '***** DHM_DuplicateCheckBatch::processAccounts retained staged Account Id=' +
+                                String.valueOf(acc.Id) + ', message=' +
+                                (pendingResult == null ? 'null result' : pendingResult.message)
+                            );
+                        }
+                    } catch (Exception e) {
+                        errorCount++;
+                        String errorText =
+                            'processPendingAccountMerge Account Id=' + String.valueOf(acc.Id) +
+                            ', exceptionType=' + e.getTypeName() +
+                            ', message=' + String.valueOf(e.getMessage());
+                        recordApplicationError(errorText);
+                        DHM_SharedCode.OutputDebugLogText(
+                            LoggingLevel.ERROR,
+                            '***** DHM_DuplicateCheckBatch::' + errorText
+                        );
+
+                        // The staged source still exists when a merge attempt throws.
+                        // Persist the error on it for reporting while leaving the pending
+                        // fields intact so it can be reviewed/retried.
+                        Account pendingErrorUpdate = new Account(Id = acc.Id);
+                        DHM_SharedCode.LogAndSetError(
+                            pendingErrorUpdate,
+                            '***** DHM_DuplicateCheckBatch::' + errorText
+                        );
+                        updates.add(pendingErrorUpdate);
+                    }
+                }
+
+                // Whether not-yet-due, retained because Contacts remain, merged, or errored,
+                // never re-evaluate a staged Account as a fresh duplicate candidate.
+                continue;
+            }
 
             List<Contact> accountContacts = contactsByAccountId.get(acc.Id);
             if (!accountHasAnyMatchableContact(accountContacts, matchFields)) {
@@ -581,6 +657,39 @@ public without sharing class DHM_DuplicateCheckBatch
                     res.masterAccountId != null &&
                     res.duplicateAccountId != null) {
 
+                    if (performMerge && res.staged == true) {
+                        stagedAccountMergeCount++;
+                        candidateSetCount++;
+                        mergeLimitReached = hasReachedMergeLimit();
+
+                        DHM_SharedCode.OutputDebugLogText(
+                            LoggingLevel.DEBUG,
+                            '***** DHM_DuplicateCheckBatch::processAccounts staged Account Id=' +
+                            String.valueOf(res.duplicateAccountId) + ', masterId=' +
+                            String.valueOf(res.masterAccountId) + ', mergeAfter=' +
+                            String.valueOf(Date.today().addDays(1))
+                        );
+
+                        // The service already persisted the three staging fields on the
+                        // duplicate Account. Clear any stale error/candidate bookkeeping on
+                        // the current record only when needed; do not merge in this run.
+                        if (res.duplicateAccountId == acc.Id) {
+                            if (acc.Duplicate_Check_Candidate__c != null) {
+                                updateAcc.Duplicate_Check_Candidate__c = null;
+                                updateNeeded = true;
+                            }
+                            if (updateNeeded) {
+                                updates.add(updateAcc);
+                            }
+                            continue;
+                        }
+
+                        if (updateNeeded) {
+                            updates.add(updateAcc);
+                        }
+                        continue;
+                    }
+
                     recordEligibleMerge(res.merged);
 
                     if (performMerge && res.merged) {
@@ -637,11 +746,14 @@ public without sharing class DHM_DuplicateCheckBatch
                 }
             } catch (Exception e) {
                 errorCount++;
+                String errorText =
+                    'processAccounts Account Id=' + String.valueOf(acc.Id) +
+                    ', exceptionType=' + e.getTypeName() +
+                    ', message=' + String.valueOf(e.getMessage());
+                recordApplicationError(errorText);
                 DHM_SharedCode.LogAndSetError(
                     updateAcc,
-                    '***** DHM_DuplicateCheckBatch::processAccounts Account Id=' +
-                    String.valueOf(acc.Id) +
-                    ' Exception: ' + String.valueOf(e.getMessage())
+                    '***** DHM_DuplicateCheckBatch::' + errorText
                 );
                 updateNeeded = true;
             }
@@ -667,12 +779,15 @@ public without sharing class DHM_DuplicateCheckBatch
             } else {
                 errorCount++;
                 for (Database.Error err : saveResults[i].getErrors()) {
-                    DHM_SharedCode.OutputDebugLogText(
-                        LoggingLevel.DEBUG,
-                        '***** DHM_DuplicateCheckBatch::saveAccountUpdates error Account Id=' +
-                        String.valueOf(updates[i].Id) +
+                    String errorText =
+                        'saveAccountUpdates Account Id=' + String.valueOf(updates[i].Id) +
                         ', statusCode=' + String.valueOf(err.getStatusCode()) +
-                        ', message=' + err.getMessage()
+                        ', fields=' + String.valueOf(err.getFields()) +
+                        ', message=' + err.getMessage();
+                    recordApplicationError(errorText);
+                    DHM_SharedCode.OutputDebugLogText(
+                        LoggingLevel.ERROR,
+                        '***** DHM_DuplicateCheckBatch::' + errorText
                     );
                 }
             }
@@ -684,6 +799,42 @@ public without sharing class DHM_DuplicateCheckBatch
             String.valueOf(updatedCount) +
             ', errorCount=' + String.valueOf(errorCount)
         );
+    }
+
+    private void recordApplicationError(String errorText) {
+        if (String.isBlank(errorText) || applicationErrorDetailsTruncated) {
+            return;
+        }
+
+        String line = '[' + String.valueOf(System.now()) + '] ' + errorText + '\n';
+        Integer existingLength = applicationErrorDetails == null ? 0 : applicationErrorDetails.length();
+        Integer remaining = APPLICATION_ERROR_DETAILS_MAX - existingLength;
+
+        if (remaining <= 0) {
+            applicationErrorDetailsTruncated = true;
+            return;
+        }
+
+        if (line.length() > remaining) {
+            applicationErrorDetails = (applicationErrorDetails == null ? '' : applicationErrorDetails) +
+                line.substring(0, remaining);
+            applicationErrorDetailsTruncated = true;
+            return;
+        }
+
+        applicationErrorDetails = (applicationErrorDetails == null ? '' : applicationErrorDetails) + line;
+    }
+
+    private String getApplicationErrorDetailsForJobLog() {
+        if (String.isBlank(applicationErrorDetails)) {
+            return null;
+        }
+
+        String result = 'DHM application errors (record-level):\n' + applicationErrorDetails;
+        if (applicationErrorDetailsTruncated) {
+            result += '\n[Additional application errors omitted because the DHM Job Log error text limit was reached.]';
+        }
+        return result;
     }
 
     private List<String> getMatchFields() {
@@ -783,6 +934,7 @@ public without sharing class DHM_DuplicateCheckBatch
             LoggingLevel.DEBUG,
             '***** DHM_DuplicateCheckBatch::abortRemainingBatchWork merge limit reached. Aborting jobId=' +
             String.valueOf(jobId) + ', mergeCount=' + String.valueOf(mergeCount) +
+            ', stagedAccountMergeCount=' + String.valueOf(stagedAccountMergeCount) +
             ', maxMerges=' + String.valueOf(maxMerges)
         );
 
@@ -795,7 +947,8 @@ public without sharing class DHM_DuplicateCheckBatch
                 updatedCount,
                 candidateSetCount,
                 mergeCount,
-                errorCount
+                errorCount,
+                getApplicationErrorDetailsForJobLog()
             );
         }
 
@@ -817,23 +970,40 @@ public without sharing class DHM_DuplicateCheckBatch
             processedCount,
             updatedCount,
             candidateSetCount,
-            errorCount
+            errorCount,
+            getApplicationErrorDetailsForJobLog()
         );
 
         if (!Test.isRunningTest()) {
-            DHM_ContactMergeWorker.scheduleFirstRun(
-                batchJobId,
-                batchStartedAt,
-                matchFieldsCsv,
-                maxMerges
-            );
+            try {
+                DHM_ContactMergeWorker.scheduleFirstRun(
+                    batchJobId,
+                    batchStartedAt,
+                    matchFieldsCsv,
+                    maxMerges
+                );
+            } catch (Exception e) {
+                // Scheduling errors are catchable. Record a terminal state immediately
+                // instead of leaving the job at Contact Merges Pending.
+                DHM_JobLogService.markContactMergeWorkerFailed(
+                    batchJobId,
+                    'Unable to schedule deferred Contact merge worker: ' + e.getMessage()
+                );
+            }
         }
     }
 
     private Boolean hasReachedMergeLimit() {
-        Integer countForLimit = (objectType == 'Contact' && performMerge)
-            ? deferredContactMergeCount
-            : mergeCount;
+        Integer countForLimit;
+        if (performMerge && objectType == 'Contact') {
+            countForLimit = deferredContactMergeCount;
+        } else if (performMerge && objectType == 'Account') {
+            // Count both merges completed from prior staging and new Accounts staged in
+            // this run so Max Merges continues to cap the amount of merge work selected.
+            countForLimit = mergeCount + stagedAccountMergeCount;
+        } else {
+            countForLimit = mergeCount;
+        }
         return maxMerges != null && countForLimit >= maxMerges;
     }
 
@@ -885,7 +1055,8 @@ public without sharing class DHM_DuplicateCheckBatch
                 candidateSetCount,
                 mergeCount,
                 errorCount,
-                mergeLimitReached
+                mergeLimitReached,
+                getApplicationErrorDetailsForJobLog()
             );
         }
     }

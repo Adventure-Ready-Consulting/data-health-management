@@ -569,4 +569,78 @@ private class DHM_DuplicateCheckBatch_TEST {
         DHM_DuplicateRuleCandidateService.clearTestCandidates();
     }
 
+
+    @IsTest
+    static void testBatchSkipsPendingAccountThatIsNotDue() {
+        Account master = new Account(Name = 'Batch Pending Future Master');
+        Account source = new Account(Name = 'Batch Pending Future Source');
+        insert new List<Account>{ master, source };
+
+        source.DHM_Pending_Merge__c = true;
+        source.DHM_Merge_After__c = Date.today().addDays(1);
+        source.DHM_Merge_Into_Account__c = master.Id;
+        update source;
+
+        Test.startTest();
+        DHM_DuplicateCheckBatch.startBatch(
+            'Account',
+            true,
+            'FirstName,LastName,Birthdate',
+            null,
+            null,
+            null,
+            source.Id,
+            false);
+        Test.stopTest();
+
+        Account refreshed = [
+            SELECT DHM_Pending_Merge__c, DHM_Merge_After__c, DHM_Merge_Into_Account__c
+            FROM Account
+            WHERE Id = :source.Id
+        ];
+        System.assertEquals(true, refreshed.DHM_Pending_Merge__c);
+        System.assertEquals(Date.today().addDays(1), refreshed.DHM_Merge_After__c);
+        System.assertEquals(master.Id, refreshed.DHM_Merge_Into_Account__c);
+    }
+
+    @IsTest
+    static void testBatchRetainsDuePendingAccountWhenContactRemains() {
+        Account master = new Account(Name = 'Batch Pending Contact Master');
+        Account source = new Account(Name = 'Batch Pending Contact Source');
+        insert new List<Account>{ master, source };
+
+        source.DHM_Pending_Merge__c = true;
+        source.DHM_Merge_After__c = Date.today().addDays(-1);
+        source.DHM_Merge_Into_Account__c = master.Id;
+        update source;
+
+        insert new Contact(
+            AccountId = source.Id,
+            FirstName = 'Remain',
+            LastName = 'Contact',
+            Birthdate = Date.newInstance(1980, 1, 1)
+        );
+
+        Test.startTest();
+        DHM_DuplicateCheckBatch.startBatch(
+            'Account',
+            true,
+            'FirstName,LastName,Birthdate',
+            null,
+            null,
+            null,
+            source.Id,
+            false);
+        Test.stopTest();
+
+        Account refreshed = [
+            SELECT DHM_Pending_Merge__c, DHM_Merge_Into_Account__c
+            FROM Account
+            WHERE Id = :source.Id
+        ];
+        System.assertEquals(true, refreshed.DHM_Pending_Merge__c);
+        System.assertEquals(master.Id, refreshed.DHM_Merge_Into_Account__c);
+        System.assertEquals(1, [SELECT COUNT() FROM Contact WHERE AccountId = :source.Id]);
+    }
+
 }

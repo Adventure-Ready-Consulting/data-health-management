@@ -33,6 +33,7 @@ public without sharing class DHM_SingleAccountMergeService {
         res.duplicateAccountId = null;
         res.candidateFound = false;
         res.merged = false;
+        res.staged = false;
 
         Boolean useLegacyTestMatching =
             Test.isRunningTest() && !DHM_DuplicateRuleCandidateService.hasTestCandidates();
@@ -133,12 +134,13 @@ public without sharing class DHM_SingleAccountMergeService {
         }
 
         moveMatchedContactsToMaster(matchBundle);
-        mergeAccounts(matchBundle.targetAccountId, matchBundle.sourceAccountId);
+        stageAccountMerge(matchBundle.targetAccountId, matchBundle.sourceAccountId);
 
-        res.merged = true;
+        res.staged = true;
         res.message =
-            'Merged account ' + String.valueOf(res.duplicateAccountId) +
-            ' into master account ' + String.valueOf(res.masterAccountId) + '.';
+            'Staged account ' + String.valueOf(res.duplicateAccountId) +
+            ' to merge into master account ' + String.valueOf(res.masterAccountId) +
+            ' on or after ' + String.valueOf(Date.today().addDays(1)) + '.';
 
         return res;
     }
@@ -1003,15 +1005,99 @@ public without sharing class DHM_SingleAccountMergeService {
         return '\'' + String.escapeSingleQuotes(String.valueOf(value)) + '\'';
     }
 
+
+    @TestVisible
+    static void stageAccountMerge(Id targetAccountId, Id sourceAccountId) {
+        if (targetAccountId == null || sourceAccountId == null || targetAccountId == sourceAccountId) {
+            throw new IllegalArgumentException('A pending Account merge requires different source and target Account Ids.');
+        }
+
+        update new Account(
+            Id = sourceAccountId,
+            DHM_Pending_Merge__c = true,
+            DHM_Merge_After__c = Date.today().addDays(1),
+            DHM_Merge_Into_Account__c = targetAccountId
+        );
+    }
+
+    public static DHM_SingleAccountMerge.Result mergePendingAccount(Id sourceAccountId) {
+        DHM_SingleAccountMerge.Result res = new DHM_SingleAccountMerge.Result();
+        res.sourceAccountId = sourceAccountId;
+        res.duplicateAccountId = sourceAccountId;
+        res.candidateFound = false;
+        res.merged = false;
+        res.staged = false;
+
+        List<Account> sources = [
+            SELECT Id, DHM_Pending_Merge__c, DHM_Merge_After__c, DHM_Merge_Into_Account__c
+            FROM Account
+            WHERE Id = :sourceAccountId
+            LIMIT 1
+        ];
+        if (sources.isEmpty()) {
+            res.message = 'Pending merge source Account no longer exists.';
+            return res;
+        }
+
+        Account source = sources[0];
+        res.targetAccountId = source.DHM_Merge_Into_Account__c;
+        res.masterAccountId = source.DHM_Merge_Into_Account__c;
+
+        if (source.DHM_Pending_Merge__c != true) {
+            res.message = 'Account is not marked DHM Pending Merge.';
+            return res;
+        }
+        if (source.DHM_Merge_After__c == null || source.DHM_Merge_After__c > Date.today()) {
+            res.staged = true;
+            res.message = 'Pending Account merge is not due yet.';
+            return res;
+        }
+        if (source.DHM_Merge_Into_Account__c == null) {
+            res.staged = true;
+            res.message = 'Pending Account merge has no master Account.';
+            return res;
+        }
+
+        List<Account> targets = [
+            SELECT Id
+            FROM Account
+            WHERE Id = :source.DHM_Merge_Into_Account__c
+            LIMIT 1
+        ];
+        if (targets.isEmpty()) {
+            res.staged = true;
+            res.message = 'Pending Account merge master Account no longer exists.';
+            return res;
+        }
+
+        Integer remainingContactCount = [
+            SELECT COUNT()
+            FROM Contact
+            WHERE AccountId = :source.Id
+        ];
+        if (remainingContactCount > 0) {
+            res.candidateFound = true;
+            res.staged = true;
+            res.message =
+                'Pending Account merge retained because source Account still has ' +
+                String.valueOf(remainingContactCount) + ' Contact(s).';
+            return res;
+        }
+
+        res.candidateFound = true;
+        mergeAccounts(source.DHM_Merge_Into_Account__c, source.Id);
+        res.merged = true;
+        res.message =
+            'Merged staged account ' + String.valueOf(source.Id) +
+            ' into master account ' + String.valueOf(source.DHM_Merge_Into_Account__c) + '.';
+        return res;
+    }
+
     @TestVisible
     static void mergeAccounts(Id targetAccountId, Id sourceAccountId) {
-        // NPSP NOTE: This merge may currently be invoked from DHM_DuplicateCheckBatch.
-        // Older DHM/NPSP code documented Account-delete automation starting async work
-        // that was not safe from a Batch Apex context. Current production behavior has
-        // been stable, so Account merging is intentionally left inline for now. If NPSP
-        // begins throwing future/queueable/async-context errors here, defer Account merge
-        // execution to a separately scheduled synchronous worker (after revalidation),
-        // matching the NPSP-safe Contact merge pattern. Do not move it to Queueable.
+        // Account merges are deliberately delayed. The discovery transaction first
+        // reparents matched Contacts and stages the duplicate Account; a later Account
+        // batch run calls this method only after the hold date and a zero-Contact check.
         Account target = [SELECT Id FROM Account WHERE Id = :targetAccountId LIMIT 1];
         Account source = [SELECT Id FROM Account WHERE Id = :sourceAccountId LIMIT 1];
 

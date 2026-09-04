@@ -86,4 +86,14 @@ private class DHM_JobLogService_TEST {
         System.assertEquals(0, DHM_JobLogService.normalizePlatformErrors(null, true));
     }
 
+    @IsTest
+    static void appendsApplicationErrorDetails() {
+        String combined = DHM_JobLogService.appendErrorMessage(
+            'First record error',
+            'Second record error'
+        );
+        System.assert(combined.contains('First record error'));
+        System.assert(combined.contains('Second record error'));
+    }
+
 }

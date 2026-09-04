@@ -294,10 +294,32 @@ private class DHM_SingleAccountMerge_TEST {
 
         System.assertNotEquals(null, result);
         System.assertEquals(true, result.candidateFound);
-        System.assertEquals(true, result.merged);
+        System.assertEquals(false, result.merged);
+        System.assertEquals(true, result.staged);
         System.assertEquals(target.Id, result.masterAccountId);
         System.assertEquals(source.Id, result.duplicateAccountId);
-        System.assert(result.message.contains('Merged account'));
+        System.assert(result.message.contains('Staged account'));
+
+        Account stagedSource = [
+            SELECT Id, DHM_Pending_Merge__c, DHM_Merge_After__c, DHM_Merge_Into_Account__c
+            FROM Account
+            WHERE Id = :source.Id
+            LIMIT 1
+        ];
+        System.assertEquals(true, stagedSource.DHM_Pending_Merge__c);
+        System.assertEquals(Date.today().addDays(1), stagedSource.DHM_Merge_After__c);
+        System.assertEquals(target.Id, stagedSource.DHM_Merge_Into_Account__c);
+        System.assertEquals(0, [SELECT COUNT() FROM Contact WHERE AccountId = :source.Id]);
+
+        // Make the staged merge due and verify the second-phase merge.
+        stagedSource.DHM_Merge_After__c = Date.today().addDays(-1);
+        update stagedSource;
+
+        DHM_SingleAccountMerge.Result pendingResult =
+            DHM_SingleAccountMergeService.mergePendingAccount(source.Id);
+        System.assertEquals(true, pendingResult.candidateFound);
+        System.assertEquals(true, pendingResult.merged);
+        System.assertEquals(target.Id, pendingResult.masterAccountId);
 
         List<Account> sourceStillExists = [
             SELECT Id
@@ -799,4 +821,345 @@ private class DHM_SingleAccountMerge_TEST {
         System.assertEquals(olderContact.Id, reversed.contactMatches[0].sourceContact.Id);
         System.assertEquals(newerContact.Id, reversed.contactMatches[0].targetContact.Id);
     }
+
+    @IsTest
+    static void testStageAccountMergeRejectsInvalidIds() {
+        Account acct = new Account(Name = 'Stage Validation');
+        insert acct;
+
+        Boolean nullRejected = false;
+        try {
+            DHM_SingleAccountMergeService.stageAccountMerge(null, acct.Id);
+        } catch (IllegalArgumentException e) {
+            nullRejected = true;
+        }
+        System.assertEquals(true, nullRejected);
+
+        Boolean sameRejected = false;
+        try {
+            DHM_SingleAccountMergeService.stageAccountMerge(acct.Id, acct.Id);
+        } catch (IllegalArgumentException e) {
+            sameRejected = true;
+        }
+        System.assertEquals(true, sameRejected);
+    }
+
+    @IsTest
+    static void testMergePendingAccountSourceMissing() {
+        // Create a real Account Id, then roll the insert back so the service can
+        // exercise its "source no longer exists" branch without firing Account
+        // delete automation/triggers in the test org.
+        Savepoint sp = Database.setSavepoint();
+        Account source = new Account(Name = 'Pending Missing Source');
+        insert source;
+        Id sourceId = source.Id;
+        Database.rollback(sp);
+
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.mergePendingAccount(sourceId);
+
+        System.assertEquals(false, result.candidateFound);
+        System.assertEquals(false, result.merged);
+        System.assert(result.message.contains('no longer exists'));
+    }
+
+    @IsTest
+    static void testMergePendingAccountNotMarked() {
+        Account source = new Account(Name = 'Pending Not Marked');
+        insert source;
+
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.mergePendingAccount(source.Id);
+
+        System.assertEquals(false, result.candidateFound);
+        System.assertEquals(false, result.merged);
+        System.assert(result.message.contains('not marked'));
+    }
+
+    @IsTest
+    static void testMergePendingAccountNotDueYet() {
+        Account source = new Account(
+            Name = 'Pending Future Source',
+            DHM_Pending_Merge__c = true,
+            DHM_Merge_After__c = Date.today().addDays(1)
+        );
+        insert source;
+
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.mergePendingAccount(source.Id);
+
+        System.assertEquals(false, result.candidateFound);
+        System.assertEquals(false, result.merged);
+        System.assertEquals(true, result.staged);
+        System.assert(result.message.contains('not due yet'));
+    }
+
+    @IsTest
+    static void testMergePendingAccountMissingMaster() {
+        Account source = new Account(
+            Name = 'Pending No Master',
+            DHM_Pending_Merge__c = true,
+            DHM_Merge_After__c = Date.today().addDays(-1)
+        );
+        insert source;
+
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.mergePendingAccount(source.Id);
+
+        System.assertEquals(false, result.candidateFound);
+        System.assertEquals(false, result.merged);
+        System.assertEquals(true, result.staged);
+        System.assert(result.message.contains('no master Account'));
+    }
+
+    @IsTest
+    static void testMergePendingAccountRetainedWhenContactsRemain() {
+        Account master = new Account(Name = 'Pending Contact Master');
+        Account source = new Account(Name = 'Pending Contact Source');
+        insert new List<Account>{ master, source };
+
+        source.DHM_Pending_Merge__c = true;
+        source.DHM_Merge_After__c = Date.today().addDays(-1);
+        source.DHM_Merge_Into_Account__c = master.Id;
+        update source;
+
+        insert new Contact(
+            AccountId = source.Id,
+            FirstName = 'Still',
+            LastName = 'Here'
+        );
+
+        DHM_SingleAccountMerge.Result result =
+            DHM_SingleAccountMergeService.mergePendingAccount(source.Id);
+
+        System.assertEquals(true, result.candidateFound);
+        System.assertEquals(false, result.merged);
+        System.assertEquals(true, result.staged);
+        System.assert(result.message.contains('still has 1 Contact'));
+
+        Account stillPending = [
+            SELECT DHM_Pending_Merge__c, DHM_Merge_Into_Account__c
+            FROM Account
+            WHERE Id = :source.Id
+        ];
+        System.assertEquals(true, stillPending.DHM_Pending_Merge__c);
+        System.assertEquals(master.Id, stillPending.DHM_Merge_Into_Account__c);
+    }
+
+
+
+    @IsTest
+    static void testCriteriaAndAccountExclusionHelpers_CoverageBoost() {
+        Account a1 = new Account(Name = 'Criteria Account One');
+        Account a2 = new Account(Name = 'Criteria Account Two');
+        insert new List<Account>{ a1, a2 };
+
+        Contact minor = new Contact(
+            AccountId = a1.Id,
+            FirstName = 'Minor',
+            LastName = 'Kid',
+            Birthdate = Date.newInstance(2015, 6, 1)
+        );
+        Contact adult = new Contact(
+            AccountId = a2.Id,
+            FirstName = 'Adult',
+            LastName = 'Person',
+            Birthdate = Date.newInstance(1980, 1, 1)
+        );
+        insert new List<Contact>{ minor, adult };
+
+        String criteria = 'Birthdate >= 2010-01-01 AND (FirstName = \'Minor\' OR LastName = \'Kid\')';
+        System.assertEquals(
+            criteria,
+            DHM_SingleAccountMergeService.validateContactExclusionCriteria(criteria)
+        );
+
+        Set<Id> matchingContacts =
+            DHM_SingleAccountMergeService.findContactIdsMatchingCriteria(
+                new Set<Id>{ minor.Id, adult.Id }, criteria
+            );
+        System.assertEquals(new Set<Id>{ minor.Id }, matchingContacts);
+
+        System.assertEquals(
+            true,
+            DHM_SingleAccountMergeService.accountMatchesContactExclusion(a1.Id, criteria)
+        );
+        System.assertEquals(
+            false,
+            DHM_SingleAccountMergeService.accountMatchesContactExclusion(a2.Id, criteria)
+        );
+        System.assertEquals(
+            false,
+            DHM_SingleAccountMergeService.accountMatchesContactExclusion(null, criteria)
+        );
+        System.assertEquals(
+            false,
+            DHM_SingleAccountMergeService.accountMatchesContactExclusion(a1.Id, null)
+        );
+
+        Set<Id> matchingAccounts =
+            DHM_SingleAccountMergeService.findAccountIdsMatchingContactExclusion(
+                new Set<Id>{ a1.Id, a2.Id }, criteria
+            );
+        System.assertEquals(new Set<Id>{ a1.Id }, matchingAccounts);
+
+        System.assertEquals(
+            0,
+            DHM_SingleAccountMergeService.findContactIdsMatchingCriteria(null, criteria).size()
+        );
+        System.assertEquals(
+            0,
+            DHM_SingleAccountMergeService.findContactIdsMatchingCriteria(new Set<Id>(), criteria).size()
+        );
+        System.assertEquals(
+            0,
+            DHM_SingleAccountMergeService.findAccountIdsMatchingContactExclusion(null, criteria).size()
+        );
+        System.assertEquals(
+            0,
+            DHM_SingleAccountMergeService.findAccountIdsMatchingContactExclusion(new Set<Id>(), criteria).size()
+        );
+    }
+
+    @IsTest
+    static void testCriteriaValidationAndTokenizationBranches_CoverageBoost() {
+        System.assertEquals(null, DHM_SingleAccountMergeService.validateContactExclusionCriteria(null));
+        System.assertEquals(null, DHM_SingleAccountMergeService.validateContactExclusionCriteria('   '));
+
+        List<String> tokens = DHM_SingleAccountMergeService.tokenizeCriteria(
+            '(Birthdate < 2010-01-01 OR FirstName != \'O\'\'Brien\') AND DoNotCall = false'
+        );
+        System.assert(tokens.size() > 10);
+        System.assert(tokens.contains('('));
+        System.assert(tokens.contains('!='));
+        System.assert(tokens.contains('false'));
+
+        // Exercise supported literal types and comparison operators.
+        DHM_SingleAccountMergeService.validateContactExclusionCriteria('Birthdate = null');
+        DHM_SingleAccountMergeService.validateContactExclusionCriteria('DoNotCall = true');
+    }
+
+    @IsTest
+    static void testCriteriaValidationRejectsUnsafeInputs_CoverageBoost() {
+        List<String> badCriteria = new List<String>{
+            'LastName LIKE \'Smith%\'',
+            'LastName = \'Smith\';',
+            'LastName = :name',
+            'Bogus_Field__c = 1',
+            'LastName ~~ \'Smith\'',
+            'LastName =',
+            '(LastName = \'Smith\''
+        };
+
+        for (String criteria : badCriteria) {
+            Boolean rejected = false;
+            try {
+                DHM_SingleAccountMergeService.validateContactExclusionCriteria(criteria);
+            } catch (IllegalArgumentException e) {
+                rejected = true;
+            }
+            System.assertEquals(true, rejected, 'Expected criteria to be rejected: ' + criteria);
+        }
+
+        String tooLong = '';
+        for (Integer i = 0; i < 1001; i++) {
+            tooLong += 'x';
+        }
+        Boolean longRejected = false;
+        try {
+            DHM_SingleAccountMergeService.validateContactExclusionCriteria(tooLong);
+        } catch (IllegalArgumentException e) {
+            longRejected = true;
+        }
+        System.assertEquals(true, longRejected);
+
+        Boolean unterminatedRejected = false;
+        try {
+            DHM_SingleAccountMergeService.tokenizeCriteria('LastName = \'Smith');
+        } catch (IllegalArgumentException e) {
+            unterminatedRejected = true;
+        }
+        System.assertEquals(true, unterminatedRejected);
+    }
+
+    @IsTest
+    static void testMatchFieldAndLiteralHelpers_CoverageBoost() {
+        DHM_SingleAccountMergeService.validateMatchFields(
+            new List<String>{ 'FirstName', 'LastName', 'Birthdate' }
+        );
+        System.assertEquals(
+            'FirstName',
+            DHM_SingleAccountMergeService.findFilterableMatchField(
+                new List<String>{ 'FirstName', 'LastName' }
+            )
+        );
+
+        List<List<String>> invalidFieldLists = new List<List<String>>{
+            null,
+            new List<String>(),
+            new List<String>{ 'Bogus_Field__c' },
+            new List<String>{ 'LastName', 'LastName' }
+        };
+        for (List<String> fields : invalidFieldLists) {
+            Boolean rejected = false;
+            try {
+                DHM_SingleAccountMergeService.validateMatchFields(fields);
+            } catch (IllegalArgumentException e) {
+                rejected = true;
+            }
+            System.assertEquals(true, rejected);
+        }
+
+        Boolean noFilterableRejected = false;
+        try {
+            DHM_SingleAccountMergeService.findFilterableMatchField(
+                new List<String>{ 'Bogus_Field__c' }
+            );
+        } catch (IllegalArgumentException e) {
+            noFilterableRejected = true;
+        }
+        System.assertEquals(true, noFilterableRejected);
+
+        System.assertEquals('null', DHM_SingleAccountMergeService.toSoqlLiteral(null));
+        System.assertEquals('2026-09-04', DHM_SingleAccountMergeService.toSoqlLiteral(Date.newInstance(2026, 9, 4)));
+        System.assertEquals('true', DHM_SingleAccountMergeService.toSoqlLiteral(true));
+        System.assertEquals('42', DHM_SingleAccountMergeService.toSoqlLiteral(42));
+        System.assertEquals('42.5', DHM_SingleAccountMergeService.toSoqlLiteral(Decimal.valueOf('42.5')));
+        String escapedLiteral = DHM_SingleAccountMergeService.toSoqlLiteral('O\'Brien');
+        System.assert(escapedLiteral.startsWith('\''));
+        System.assert(escapedLiteral.endsWith('\''));
+        System.assert(escapedLiteral.contains('Brien'));
+        System.assert(escapedLiteral.contains('\\'));
+
+        String dateTimeLiteral = DHM_SingleAccountMergeService.toSoqlLiteral(
+            Datetime.newInstanceGMT(2026, 9, 4, 12, 30, 0)
+        );
+        System.assertEquals('2026-09-04T12:30:00Z', dateTimeLiteral);
+
+        Set<Object> values = new Set<Object>{ 'B', 'A', 2 };
+        String literalList = DHM_SingleAccountMergeService.buildSoqlLiteralList(values);
+        System.assert(literalList.contains('\'A\''));
+        System.assert(literalList.contains('\'B\''));
+        System.assert(literalList.contains('2'));
+    }
+
+    @IsTest
+    static void testRequiredKeyCountsBranches_CoverageBoost() {
+        Map<String, Integer> required = new Map<String, Integer>{ 'A' => 2, 'B' => 1 };
+        Map<String, List<Contact>> enough = new Map<String, List<Contact>>{
+            'A' => new List<Contact>{ new Contact(), new Contact() },
+            'B' => new List<Contact>{ new Contact() }
+        };
+        Map<String, List<Contact>> tooFew = new Map<String, List<Contact>>{
+            'A' => new List<Contact>{ new Contact() },
+            'B' => new List<Contact>{ new Contact() }
+        };
+
+        System.assertEquals(true, DHM_SingleAccountMergeService.hasRequiredKeyCounts(required, enough));
+        System.assertEquals(false, DHM_SingleAccountMergeService.hasRequiredKeyCounts(required, tooFew));
+        System.assertEquals(false, DHM_SingleAccountMergeService.hasRequiredKeyCounts(required, new Map<String, List<Contact>>()));
+        System.assertEquals(false, DHM_SingleAccountMergeService.hasRequiredKeyCounts(null, enough));
+        System.assertEquals(false, DHM_SingleAccountMergeService.hasRequiredKeyCounts(required, null));
+    }
+
 }

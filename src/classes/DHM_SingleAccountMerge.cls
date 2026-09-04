@@ -6,6 +6,7 @@ public without sharing class DHM_SingleAccountMerge {
         public Id duplicateAccountId;
         public Boolean candidateFound;
         public Boolean merged;
+        public Boolean staged;
         public String message;
     }
 }

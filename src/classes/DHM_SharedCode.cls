@@ -74,7 +74,12 @@ public without sharing class DHM_SharedCode {
             'LastActivityDate',
             'LastViewedDate',
             'LastReferencedDate',
-            'MasterRecordId'
+            'MasterRecordId',
+            // Internal DHM Account merge-staging fields must never be copied to the
+            // surviving master during ObjectsFieldMerge.
+            'DHM_Pending_Merge__c',
+            'DHM_Merge_After__c',
+            'DHM_Merge_Into_Account__c'
         };
 
         if (blockedFields.contains(fieldName)) {

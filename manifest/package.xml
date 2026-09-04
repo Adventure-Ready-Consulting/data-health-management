@@ -21,6 +21,7 @@
         <members>DHM_AccountDuplicateScheduler</members>
         <members>DHM_ContactDuplicateScheduler</members>
         <members>DHM_ContactMergeWorker</members>
+        <members>DHM_ContactMergeWatchdog</members>
         <members>DHM_ContactMergeWorker_TEST</members>
         <members>DHM_DuplicateManagementScheduler_TEST</members>
         <members>DHM_JobLogService</members>

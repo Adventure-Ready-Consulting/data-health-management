@@ -1,8 +1,9 @@
 public without sharing class DHM_ContactMergeWorker implements Schedulable {
 
-    public static final Integer MERGES_PER_RUN = 10;
+    public static final Integer MERGES_PER_RUN = 1;
     private static final Integer QUERY_LIMIT = 50;
     private static final Integer RESCHEDULE_MINUTES = 2;
+    private static final Integer WATCHDOG_MINUTES = 10;
 
     private Id batchJobId;
     private Datetime candidateCutoff;
@@ -33,17 +34,28 @@ public without sharing class DHM_ContactMergeWorker implements Schedulable {
         String matchFieldsCsv,
         Integer maxMerges
     ) {
-        return scheduleAt(
+        String workerJobId = scheduleAt(
             new DHM_ContactMergeWorker(batchJobId, candidateCutoff, matchFieldsCsv, maxMerges),
             System.now().addMinutes(1),
             'DHM Contact Merge ' + String.valueOf(batchJobId)
         );
+
+        // A governor LimitException (for example, NPSP SOQL exhaustion) cannot be caught
+        // by the worker transaction. Schedule a lightweight watchdog so a failed worker
+        // cannot leave the DHM Job Log in Contact Merges Pending indefinitely.
+        scheduleAt(
+            new DHM_ContactMergeWatchdog(batchJobId),
+            System.now().addMinutes(WATCHDOG_MINUTES),
+            'DHM Contact Merge Watchdog ' + String.valueOf(batchJobId)
+        );
+        return workerJobId;
     }
 
     @TestVisible
     private void runOnce() {
         Integer mergesThisRun = 0;
         Integer errorsThisRun = 0;
+        String errorDetailsThisRun;
         Set<String> attemptedPairs = new Set<String>();
 
         List<Contact> queued = [
@@ -84,13 +96,13 @@ public without sharing class DHM_ContactMergeWorker implements Schedulable {
                 }
             } catch (Exception e) {
                 errorsThisRun++;
-                setContactError(
-                    queuedContact.Id,
-                    '***** DHM_ContactMergeWorker Contact Id=' +
-                    String.valueOf(queuedContact.Id) +
-                    ' Candidate Id=' + String.valueOf(candidateId) +
-                    ' Exception: ' + e.getMessage()
-                );
+                String errorText =
+                    'DHM_ContactMergeWorker Contact Id=' + String.valueOf(queuedContact.Id) +
+                    ', Candidate Id=' + String.valueOf(candidateId) +
+                    ', exceptionType=' + e.getTypeName() +
+                    ', message=' + e.getMessage();
+                errorDetailsThisRun = appendLocalError(errorDetailsThisRun, errorText);
+                setContactError(queuedContact.Id, '***** ' + errorText);
             }
         }
 
@@ -112,7 +124,8 @@ public without sharing class DHM_ContactMergeWorker implements Schedulable {
             batchJobId,
             mergesThisRun,
             errorsThisRun,
-            hasMore
+            hasMore,
+            errorDetailsThisRun
         );
 
         if (hasMore && !Test.isRunningTest()) {
@@ -129,7 +142,7 @@ public without sharing class DHM_ContactMergeWorker implements Schedulable {
         }
     }
 
-    private static String scheduleAt(DHM_ContactMergeWorker worker, Datetime whenToRun, String baseName) {
+    private static String scheduleAt(Schedulable worker, Datetime whenToRun, String baseName) {
         String cron = String.valueOf(whenToRun.second()) + ' ' +
             String.valueOf(whenToRun.minute()) + ' ' +
             String.valueOf(whenToRun.hour()) + ' ' +
@@ -157,6 +170,13 @@ public without sharing class DHM_ContactMergeWorker implements Schedulable {
         Contact updateContact = new Contact(Id = contactId, Duplicate_Check_Candidate__c = null);
         DHM_SharedCode.LogAndSetError(updateContact, message);
         Database.update(updateContact, false);
+    }
+
+    private static String appendLocalError(String existing, String errorText) {
+        if (String.isBlank(errorText)) return existing;
+        String line = '[' + String.valueOf(System.now()) + '] ' + errorText;
+        String combined = String.isBlank(existing) ? line : existing + '\n' + line;
+        return combined.length() <= 30000 ? combined : combined.substring(0, 30000);
     }
 
     private static String buildPairKey(Id firstId, Id secondId) {
