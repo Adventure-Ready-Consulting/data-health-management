@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Log_Filter__c</fullName>
     <description>Enter text to filter which log messages are written to the database.  Supports single value or comma-separated values.</description>
+    <encryptionScheme>None</encryptionScheme>
     <externalId>false</externalId>
     <inlineHelpText>Enter text to filter which log messages are written to the database.  Supports single value or comma-separated values.</inlineHelpText>
     <label>Log Filter</label>

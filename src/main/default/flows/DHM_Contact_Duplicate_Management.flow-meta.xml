@@ -17,17 +17,9 @@
         </inputParameters>
         <inputParameters>
             <name>contactExclusionCriteria</name>
-            <value>
-                <inputConfiguratorMode>Resource</inputConfiguratorMode>
-                <stringValue>C501_Age_Calculate__c &lt; 18</stringValue>
-            </value>
         </inputParameters>
         <inputParameters>
             <name>maxMerges</name>
-            <value>
-                <inputConfiguratorMode>Resource</inputConfiguratorMode>
-                <numberValue>1.0</numberValue>
-            </value>
         </inputParameters>
         <inputParameters>
             <name>objectType</name>
